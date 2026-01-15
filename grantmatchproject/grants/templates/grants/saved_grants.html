@@ -1,0 +1,80 @@
+{% extends 'grants/base.html' %}
+{% load static %}
+
+{% block title %}Saved Grants - Granted{% endblock %}
+
+{% block content %}
+<div class="saved-grants-page">
+    <div class="page-header">
+        <h1>Saved Grants</h1>
+    </div>
+
+    <div class="grant-cards">
+        {% for match in saved_matches %}
+        <div class="grant-card">
+            <div class="grant-card-header">
+                <div class="grant-icon">
+                    <span class="grant-icon-default">{{ match.grant.agency.acronym|slice:":1" }}</span>
+                </div>
+                <div class="grant-agency">{{ match.grant.agency.acronym }}</div>
+                <div class="match-badge match-badge-high">{{ match.match_score }}%</div>
+            </div>
+            <h3 class="grant-title">{{ match.grant.title }}</h3>
+            <div class="grant-funding">{{ match.grant.funding_range }}</div>
+            <div class="grant-deadline">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <rect x="3" y="2" width="10" height="12" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                    <path d="M5 1V4M11 1V4M3 7H13" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+                Closes: {{ match.grant.closing_date|date:"d M Y"|default:"TBA" }}
+            </div>
+            <ul class="grant-features">
+                {% for reason in match.match_reasons|slice:":3" %}
+                <li>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <circle cx="8" cy="8" r="6" fill="currentColor"/>
+                        <path d="M5 8L7 10L11 6" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    {{ reason }}
+                </li>
+                {% endfor %}
+            </ul>
+            <div class="grant-tags">
+                {% if match.grant.duration_years %}
+                <span class="tag tag-blue">{{ match.grant.duration_years }}</span>
+                {% endif %}
+                <span class="tag tag-green">{{ match.grant.get_status_display }}</span>
+            </div>
+            <div class="grant-card-actions">
+                <a href="{% url 'grants:grant_detail' match.grant.id %}" class="btn btn-primary btn-sm">View Details</a>
+                <button class="btn-icon" onclick="toggleSave({{ match.grant.id }})">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" stroke="currentColor" stroke-width="2">
+                        <path d="M10 15L5 10L6.5 8.5L10 12L13.5 8.5L15 10L10 15Z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        {% empty %}
+        <div class="empty-state">
+            <p>You haven't saved any grants yet.</p>
+            <a href="{% url 'grants:grants_list' %}" class="btn btn-primary">Browse Grants</a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleSave(grantId) {
+    fetch(`/grants/${grantId}/save/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+        },
+    }).then(() => {
+        location.reload();
+    });
+}
+</script>
+{% endblock %}

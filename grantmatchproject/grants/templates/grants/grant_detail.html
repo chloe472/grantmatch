@@ -1,0 +1,115 @@
+{% extends 'grants/base.html' %}
+{% load static %}
+
+{% block title %}{{ grant.title }} - Granted{% endblock %}
+
+{% block content %}
+<div class="grant-detail-page">
+    <div class="grant-detail-header">
+        <div class="grant-detail-icon">
+            <span class="grant-icon-default">{{ grant.agency.acronym|slice:":1" }}</span>
+        </div>
+        <div class="grant-detail-info">
+            <div class="grant-detail-agency">{{ grant.agency.acronym }}</div>
+            <h1>{{ grant.title }}</h1>
+            <div class="grant-detail-meta">
+                <span class="tag tag-green">{{ grant.get_status_display }}</span>
+                {% if grant.duration_years %}
+                <span class="tag tag-blue">{{ grant.duration_years }}</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="grant-detail-actions">
+            {% if grant.match_score %}
+            <div class="match-badge match-badge-large">{{ grant.match_score }}%</div>
+            {% endif %}
+            <button class="btn-icon" onclick="toggleSave({{ grant.id }})">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="{% if is_saved %}currentColor{% else %}none%}" stroke="currentColor" stroke-width="2">
+                    <path d="M12 17L7 12L8.5 10.5L12 14L15.5 10.5L17 12L12 17Z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="grant-detail-content">
+        <div class="grant-detail-main">
+            <div class="detail-section">
+                <h2>Description</h2>
+                <p>{{ grant.description }}</p>
+            </div>
+
+            {% if grant.eligibility_criteria %}
+            <div class="detail-section">
+                <h2>Eligibility Criteria</h2>
+                <p>{{ grant.eligibility_criteria }}</p>
+            </div>
+            {% endif %}
+
+            {% if user_matches %}
+            <div class="detail-section">
+                <h2>Why This Matches Your Projects</h2>
+                {% for match in user_matches %}
+                <div class="match-reason-card">
+                    <h3>{{ match.project.title }}</h3>
+                    <div class="match-score">{{ match.match_score }}% Match</div>
+                    <ul class="match-reasons">
+                        {% for reason in match.match_reasons %}
+                        <li>{{ reason }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="grant-detail-sidebar">
+            <div class="info-card">
+                <h3>Funding Range</h3>
+                <p class="info-value">{{ grant.funding_range }}</p>
+            </div>
+            <div class="info-card">
+                <h3>Closing Date</h3>
+                <p class="info-value">{{ grant.closing_date|date:"d M Y"|default:"TBA" }}</p>
+                {% if grant.days_until_deadline %}
+                <p class="info-subtext">{{ grant.days_until_deadline }} days remaining</p>
+                {% endif %}
+            </div>
+            {% if grant.opening_date %}
+            <div class="info-card">
+                <h3>Opening Date</h3>
+                <p class="info-value">{{ grant.opening_date|date:"d M Y" }}</p>
+            </div>
+            {% endif %}
+            <div class="info-card">
+                <h3>Agency</h3>
+                <p class="info-value">{{ grant.agency.name }}</p>
+                {% if grant.agency.website %}
+                <a href="{{ grant.agency.website }}" target="_blank" class="info-link">Visit Website</a>
+                {% endif %}
+            </div>
+            {% if grant.application_url %}
+            <div class="info-card">
+                <a href="{{ grant.application_url }}" target="_blank" class="btn btn-primary btn-block">Apply Now</a>
+                <a href="{% url 'grants:application_create' grant.id %}" class="btn btn-secondary btn-block">Create Application</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleSave(grantId) {
+    fetch(`/grants/${grantId}/save/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+        },
+    }).then(() => {
+        location.reload();
+    });
+}
+</script>
+{% endblock %}

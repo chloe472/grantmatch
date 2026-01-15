@@ -1,0 +1,49 @@
+{% extends 'grants/base.html' %}
+{% load static %}
+
+{% block title %}Applications - Granted{% endblock %}
+
+{% block content %}
+<div class="applications-page">
+    <div class="page-header">
+        <h1>My Applications</h1>
+    </div>
+
+    <div class="applications-list">
+        {% for application in applications %}
+        <div class="application-card">
+            <div class="application-header">
+                <div>
+                    <h3>{{ application.grant.title }}</h3>
+                    <p class="application-project">{{ application.project.title }}</p>
+                </div>
+                <span class="status-badge status-{{ application.status }}">{{ application.get_status_display }}</span>
+            </div>
+            <div class="application-meta">
+                <span>{{ application.grant.agency.acronym }}</span>
+                <span>•</span>
+                <span>{{ application.created_at|date:"d M Y" }}</span>
+                {% if application.submitted_at %}
+                <span>•</span>
+                <span>Submitted: {{ application.submitted_at|date:"d M Y" }}</span>
+                {% endif %}
+            </div>
+            {% if application.notes %}
+            <p class="application-notes">{{ application.notes }}</p>
+            {% endif %}
+            <div class="application-actions">
+                <a href="{% url 'grants:grant_detail' application.grant.id %}" class="btn btn-secondary btn-sm">View Grant</a>
+                {% if application.status == 'draft' %}
+                <a href="#" class="btn btn-primary btn-sm">Continue Application</a>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="empty-state">
+            <p>You haven't created any applications yet.</p>
+            <a href="{% url 'grants:grants_list' %}" class="btn btn-primary">Browse Grants</a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

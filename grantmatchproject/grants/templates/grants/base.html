@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Granted - AI-Powered Funding{% endblock %}</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1 class="logo">Granted</h1>
+                <p class="logo-subtitle">AI-Powered Funding</p>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="{% url 'grants:dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M3 10L9 4V9H17V11H9V16L3 10Z" fill="currentColor"/>
+                    </svg>
+                    <span>Dashboard</span>
+                </a>
+                <a href="{% url 'grants:projects' %}" class="nav-item {% if request.resolver_match.url_name == 'projects' or request.resolver_match.url_name == 'project_create' %}active{% endif %}">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M10 3L3 7V13L10 17L17 13V7L10 3Z" stroke="currentColor" stroke-width="2" fill="none"/>
+                    </svg>
+                    <span>My Projects</span>
+                </a>
+                <a href="{% url 'grants:saved_grants' %}" class="nav-item {% if request.resolver_match.url_name == 'saved_grants' %}active{% endif %}">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M10 15L5 10L6.5 8.5L10 12L13.5 8.5L15 10L10 15Z" fill="currentColor"/>
+                    </svg>
+                    <span>Saved Grants</span>
+                </a>
+                <a href="{% url 'grants:applications' %}" class="nav-item {% if request.resolver_match.url_name == 'applications' or request.resolver_match.url_name == 'application_create' %}active{% endif %}">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M4 4H16V16H4V4Z" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <path d="M7 8H13M7 11H13M7 14H10" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                    <span>Applications</span>
+                </a>
+                <a href="{% url 'grants:settings' %}" class="nav-item {% if request.resolver_match.url_name == 'settings' %}active{% endif %}">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <circle cx="10" cy="10" r="2" fill="currentColor"/>
+                        <path d="M10 2V4M10 16V18M18 10H16M4 10H2M15.66 4.34L14.24 5.76M5.76 14.24L4.34 15.66M15.66 15.66L14.24 14.24M5.76 5.76L4.34 4.34" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                    <span>Settings</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-search">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" class="search-icon">
+                        <circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <path d="M13 13L17 17" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                    <input type="text" placeholder="Search grants, events, or applications..." class="search-input">
+                </div>
+                <div class="header-actions">
+                    <a href="#" class="notification-bell">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M18 8A6 6 0 0 0 6 8C6 11.09 4.5 13.5 4.5 13.5H19.5S18 11.09 18 8Z" stroke="currentColor" stroke-width="2" fill="none"/>
+                            <path d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                        {% if user.is_authenticated %}
+                            {% if user.profile.notifications.count > 0 %}
+                                <span class="notification-badge">{{ user.profile.notifications.count }}</span>
+                            {% endif %}
+                        {% endif %}
+                    </a>
+                    {% if user.is_authenticated %}
+                        <div class="user-avatar">
+                            {% if user.profile.avatar_initials %}
+                                {{ user.profile.avatar_initials }}
+                            {% else %}
+                                {{ user.username|slice:":2"|upper }}
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <a href="{% url 'login' %}" class="btn btn-primary">Login</a>
+                    {% endif %}
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

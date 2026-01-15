@@ -1,0 +1,93 @@
+{% extends 'grants/base.html' %}
+{% load static %}
+
+{% block title %}Browse Grants - Granted{% endblock %}
+
+{% block content %}
+<div class="grants-page">
+    <div class="page-header">
+        <h1>Browse All Grants</h1>
+        <p>Explore funding opportunities across agencies</p>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-bar">
+        <form method="get" class="filters-form">
+            <input type="text" name="search" placeholder="Search grants..." value="{{ search_query }}" class="filter-input">
+            <select name="agency" class="filter-select">
+                <option value="">All Agencies</option>
+                {% for agency in agencies %}
+                <option value="{{ agency.acronym }}" {% if agency_filter == agency.acronym %}selected{% endif %}>{{ agency.name }}</option>
+                {% endfor %}
+            </select>
+            <select name="status" class="filter-select">
+                <option value="">All Status</option>
+                <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Open</option>
+                <option value="closed" {% if status_filter == 'closed' %}selected{% endif %}>Closed</option>
+                <option value="upcoming" {% if status_filter == 'upcoming' %}selected{% endif %}>Upcoming</option>
+            </select>
+            <button type="submit" class="btn btn-primary">Filter</button>
+        </form>
+    </div>
+
+    <!-- Grants Grid -->
+    <div class="grants-grid">
+        {% for grant in grants %}
+        <div class="grant-card">
+            <div class="grant-card-header">
+                <div class="grant-icon">
+                    <span class="grant-icon-default">{{ grant.agency.acronym|slice:":1" }}</span>
+                </div>
+                <div class="grant-agency">{{ grant.agency.acronym }}</div>
+                {% if grant.match_score %}
+                <div class="match-badge match-badge-high">{{ grant.match_score }}%</div>
+                {% endif %}
+            </div>
+            <h3 class="grant-title">{{ grant.title }}</h3>
+            <div class="grant-funding">{{ grant.funding_range }}</div>
+            <div class="grant-deadline">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <rect x="3" y="2" width="10" height="12" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                    <path d="M5 1V4M11 1V4M3 7H13" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+                Closes: {{ grant.closing_date|date:"d M Y"|default:"TBA" }}
+            </div>
+            <p class="grant-description">{{ grant.description|truncatewords:20 }}</p>
+            <div class="grant-tags">
+                {% if grant.duration_years %}
+                <span class="tag tag-blue">{{ grant.duration_years }}</span>
+                {% endif %}
+                <span class="tag tag-green">{{ grant.get_status_display }}</span>
+            </div>
+            <div class="grant-card-actions">
+                <a href="{% url 'grants:grant_detail' grant.id %}" class="btn btn-primary btn-sm">View Details</a>
+                <button class="btn-icon" onclick="toggleSave({{ grant.id }})">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10 15L5 10L6.5 8.5L10 12L13.5 8.5L15 10L10 15Z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        {% empty %}
+        <div class="empty-state">
+            <p>No grants found. Try adjusting your filters.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleSave(grantId) {
+    fetch(`/grants/${grantId}/save/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+        },
+    }).then(() => {
+        location.reload();
+    });
+}
+</script>
+{% endblock %}

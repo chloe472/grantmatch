@@ -1,0 +1,163 @@
+{% extends 'grants/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard - Granted{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <!-- Welcome Section -->
+    <div class="welcome-section">
+        <h1 class="welcome-title">Welcome back, {{ profile.organization_name|default:user.username }}</h1>
+        <p class="welcome-subtitle">Here's what's happening with your grant opportunities</p>
+    </div>
+
+    <!-- Action Cards -->
+    <div class="action-cards">
+        <a href="{% url 'grants:project_create' %}" class="action-card action-card-primary">
+            <div class="action-card-icon">
+                <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                    <circle cx="24" cy="24" r="20" stroke="currentColor" stroke-width="3" fill="none"/>
+                    <path d="M24 14V34M14 24H34" stroke="currentColor" stroke-width="3"/>
+                </svg>
+            </div>
+            <div class="action-card-content">
+                <h3>Create New Project</h3>
+                <p>Let AI find the perfect grants for your next project</p>
+            </div>
+            <div class="action-card-star">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+                </svg>
+            </div>
+        </a>
+        <a href="{% url 'grants:grants_list' %}" class="action-card">
+            <div class="action-card-icon">
+                <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                    <rect x="6" y="6" width="12" height="12" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
+                    <rect x="30" y="6" width="12" height="12" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
+                    <rect x="6" y="30" width="12" height="12" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
+                    <rect x="30" y="30" width="12" height="12" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
+                </svg>
+            </div>
+            <div class="action-card-content">
+                <h3>Browse All Grants</h3>
+                <p>Explore 200+ funding opportunities across agencies</p>
+            </div>
+        </a>
+    </div>
+
+    <!-- Alert Banner -->
+    {% if new_matching_grants %}
+    <div class="alert-banner">
+        <div class="alert-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z"/>
+            </svg>
+        </div>
+        <div class="alert-content">
+            <strong>{{ new_matching_grants|length }} new grant{{ new_matching_grants|length|pluralize }} matching your {{ projects.first.focus_area|default:"project" }}</strong>
+            <p>Review these opportunities before the deadlines</p>
+        </div>
+        <a href="{% url 'grants:grants_list' %}" class="btn btn-primary">View Now</a>
+    </div>
+    {% endif %}
+
+    <!-- Recent Matches -->
+    <div class="section">
+        <h2 class="section-title">Recent Matches</h2>
+        <div class="grant-cards">
+            {% for match in recent_matches %}
+            <div class="grant-card">
+                <div class="grant-card-header">
+                    <div class="grant-icon">
+                        {% if match.grant.icon_name %}
+                            <span class="icon-{{ match.grant.icon_name }}">{{ match.grant.agency.acronym|slice:":1" }}</span>
+                        {% else %}
+                            <span class="grant-icon-default">{{ match.grant.agency.acronym|slice:":1" }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="grant-agency">{{ match.grant.agency.acronym }}</div>
+                    <div class="match-badge match-badge-high">{{ match.match_score }}%</div>
+                </div>
+                <h3 class="grant-title">{{ match.grant.title }}</h3>
+                <div class="grant-funding">{{ match.grant.funding_range }}</div>
+                <div class="grant-deadline">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <rect x="3" y="2" width="10" height="12" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                        <path d="M5 1V4M11 1V4M3 7H13" stroke="currentColor" stroke-width="1.5"/>
+                    </svg>
+                    Closes: {{ match.grant.closing_date|date:"d M Y"|default:"TBA" }}
+                </div>
+                <ul class="grant-features">
+                    {% for reason in match.match_reasons|slice:":3" %}
+                    <li>
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <circle cx="8" cy="8" r="6" fill="currentColor"/>
+                            <path d="M5 8L7 10L11 6" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        {{ reason }}
+                    </li>
+                    {% endfor %}
+                </ul>
+                <div class="grant-tags">
+                    {% if match.grant.duration_years %}
+                    <span class="tag tag-blue">{{ match.grant.duration_years }}</span>
+                    {% endif %}
+                    <span class="tag tag-green">{{ match.grant.get_status_display }}</span>
+                </div>
+                <div class="grant-card-actions">
+                    <a href="{% url 'grants:grant_detail' match.grant.id %}" class="btn btn-primary btn-sm">View Details</a>
+                    <button class="btn-icon" onclick="toggleSave({{ match.grant.id }})">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="{% if match.is_saved %}currentColor{% else %}none%}" stroke="currentColor" stroke-width="2">
+                            <path d="M10 15L5 10L6.5 8.5L10 12L13.5 8.5L15 10L10 15Z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            {% empty %}
+            <div class="empty-state">
+                <p>No matches yet. Create a project to find matching grants!</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Upcoming Deadlines -->
+    <div class="section">
+        <h2 class="section-title">Upcoming Deadlines</h2>
+        <div class="deadlines-list">
+            {% for grant in upcoming_deadlines %}
+            <div class="deadline-item">
+                <div class="deadline-dot {% if grant.days_until_deadline <= 60 %}deadline-urgent{% elif grant.days_until_deadline <= 90 %}deadline-warning{% else %}deadline-ok{% endif %}"></div>
+                <div class="deadline-content">
+                    <div class="deadline-title">{{ grant.title }}</div>
+                    <div class="deadline-date">{{ grant.closing_date|date:"d M Y" }}</div>
+                </div>
+                <div class="deadline-badge {% if grant.days_until_deadline <= 60 %}badge-orange{% elif grant.days_until_deadline <= 90 %}badge-yellow{% else %}badge-green{% endif %}">
+                    {{ grant.days_until_deadline }} day{{ grant.days_until_deadline|pluralize }} left
+                </div>
+            </div>
+            {% empty %}
+            <div class="empty-state">
+                <p>No upcoming deadlines at the moment.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleSave(grantId) {
+    fetch(`/grants/${grantId}/save/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+        },
+    }).then(() => {
+        location.reload();
+    });
+}
+</script>
+{% endblock %}

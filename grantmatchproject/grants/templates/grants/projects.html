@@ -1,0 +1,35 @@
+{% extends 'grants/base.html' %}
+{% load static %}
+
+{% block title %}My Projects - Granted{% endblock %}
+
+{% block content %}
+<div class="projects-page">
+    <div class="page-header">
+        <h1>My Projects</h1>
+        <a href="{% url 'grants:project_create' %}" class="btn btn-primary">Create New Project</a>
+    </div>
+
+    <div class="projects-grid">
+        {% for project in projects %}
+        <div class="project-card">
+            <h3>{{ project.title }}</h3>
+            <p class="project-focus">{{ project.focus_area }}</p>
+            <p class="project-description">{{ project.description|truncatewords:30 }}</p>
+            <div class="project-stats">
+                <span>{{ project.match_count }} match{{ project.match_count|pluralize }}</span>
+            </div>
+            <div class="project-actions">
+                <a href="#" class="btn btn-secondary btn-sm">View Matches</a>
+                <a href="#" class="btn btn-primary btn-sm">Edit</a>
+            </div>
+        </div>
+        {% empty %}
+        <div class="empty-state">
+            <p>You haven't created any projects yet.</p>
+            <a href="{% url 'grants:project_create' %}" class="btn btn-primary">Create Your First Project</a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends 'grants/base.html' %}
+{% load static %}
+
+{% block title %}Create Application - Granted{% endblock %}
+
+{% block content %}
+<div class="form-page">
+    <div class="form-container">
+        <h1>Create Application</h1>
+        <div class="grant-info-box">
+            <h3>{{ grant.title }}</h3>
+            <p>{{ grant.agency.acronym }} • {{ grant.funding_range }}</p>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label>Select Project</label>
+                <select name="project_id" required class="form-control">
+                    <option value="">Choose a project...</option>
+                    {% for project in projects %}
+                    <option value="{{ project.id }}">{{ project.title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Notes</label>
+                <textarea name="notes" rows="5" class="form-control" placeholder="Add any notes or reminders for this application..."></textarea>
+            </div>
+            <div class="form-actions">
+                <a href="{% url 'grants:grant_detail' grant.id %}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Create Application</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
