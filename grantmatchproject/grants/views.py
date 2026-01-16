@@ -5,6 +5,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.db.models import Q, Count
 from django.utils import timezone
 from datetime import timedelta
+import json
 from .models import Grant, Project, GrantMatch, Application, Notification, Agency, UserProfile
 from django.contrib.auth.models import User
 from .services import SGGrantsService
@@ -94,21 +95,77 @@ def projects_list(request):
 def project_create(request):
     """Create a new project"""
     if request.method == 'POST':
+        # Parse JSON fields from form
+        beneficiary_types = request.POST.getlist('beneficiary_types')
+        interested_in = request.POST.getlist('interested_in')
+        need_support_for = request.POST.getlist('need_support_for')
+        want_support_from = request.POST.getlist('want_support_from')
+        
+        # Parse dates
+        start_date = request.POST.get('project_start_date') or None
+        end_date = request.POST.get('project_end_date') or None
+        
+        # Parse budget amounts
+        budget_min = request.POST.get('budget_required_min')
+        budget_max = request.POST.get('budget_required_max')
+        
+        # Parse target beneficiaries count
+        target_count = request.POST.get('target_beneficiaries_count')
+        
         project = Project.objects.create(
             user=request.user,
             title=request.POST.get('title'),
             description=request.POST.get('description'),
             focus_area=request.POST.get('focus_area', ''),
-            budget_required_min=request.POST.get('budget_required_min') or None,
-            budget_required_max=request.POST.get('budget_required_max') or None,
+            budget_required_min=float(budget_min) if budget_min else None,
+            budget_required_max=float(budget_max) if budget_max else None,
             duration_years=request.POST.get('duration_years', ''),
             kpis=request.POST.get('kpis', ''),
             service_outcomes=request.POST.get('service_outcomes', ''),
+            beneficiary_types=beneficiary_types,
+            target_beneficiaries_count=int(target_count) if target_count else None,
+            project_start_date=start_date if start_date else None,
+            project_end_date=end_date if end_date else None,
+            interested_in=interested_in,
+            need_support_for=need_support_for,
+            want_support_from=want_support_from,
         )
         # Trigger AI matching (simplified - in production, use actual AI service)
         calculate_matches_for_project(project)
         return redirect('grants:projects')
-    return render(request, 'grants/project_form.html')
+    
+    # Get agencies for the "I want support from" dropdown with grant counts
+    agencies = Agency.objects.annotate(grant_count=Count('grants')).order_by('acronym')
+    
+    # Define the options for multi-select fields
+    beneficiary_types_options = [
+        'Seniors', 'Youth', 'Children', 'Intellectually disabled', 
+        'Physically disabled', 'Low-income families', 'Caregivers'
+    ]
+    
+    interested_in_options = [
+        ('Arts', 26), ('Care', 17), ('Community', 33), ('Digital Skills/Tools', 9),
+        ('Education/Learning', 24), ('Engagement Marketing', 11), ('Environment', 7),
+        ('Health', 15), ('Heritage', 14), ('Social Cohesion', 15),
+        ('Social Service', 21), ('Sport', 14), ('Youth', 19)
+    ]
+    
+    need_support_for_options = [
+        ('Apps/Social Media/Website', 16), ('Classes/Seminar/Workshop', 28),
+        ('Construction', 3), ('Dialogue/Conversation', 14),
+        ('Event/Exhibition/Performance', 27), ('Fund-Raising', 6),
+        ('Music/Video', 18), ('Publication', 17),
+        ('Research/Documentation/Prototype', 15), ('Visual Arts', 11)
+    ]
+    
+    context = {
+        'agencies': agencies,
+        'beneficiary_types_options': beneficiary_types_options,
+        'interested_in_options': interested_in_options,
+        'need_support_for_options': need_support_for_options,
+    }
+    
+    return render(request, 'grants/project_form.html', context)
 
 
 def calculate_matches_for_project(project):
