@@ -7,6 +7,7 @@ from django.utils import timezone
 from datetime import timedelta
 from .models import Grant, Project, GrantMatch, Application, Notification, Agency, UserProfile
 from django.contrib.auth.models import User
+from .services import SGGrantsService
 
 
 def register(request):
@@ -188,21 +189,65 @@ def grants_list(request):
 
 @login_required
 def grant_detail(request, grant_id):
-    """View grant details"""
+    """View grant details - fetches live data from OurSG Grants Portal"""
+    # Get grant from database first (for basic info and relationships)
     grant = get_object_or_404(Grant, id=grant_id)
+    
+    # Fetch LIVE detailed data from OurSG Grants Portal
+    service = SGGrantsService()
+    grant_value = None
+    if grant.source_url:
+        # Extract grant value from URL (e.g., /grants/ssgacg/instruction -> ssgacg)
+        import re
+        match = re.search(r'/grants/([^/]+)/', grant.source_url)
+        if match:
+            grant_value = match.group(1)
+    
+    live_grant_data = None
+    if grant_value or grant.external_id:
+        try:
+            live_grant_data = service.fetch_grant_detail(
+                grant_value=grant_value,
+                external_id=grant.external_id
+            )
+        except Exception as e:
+            print(f"Error fetching live grant data: {e}")
+            # Fallback to database data
+    
+    # Get user matches for this grant
     user_matches = GrantMatch.objects.filter(
         grant=grant,
         project__user=request.user
     ).select_related('project')
     
     is_saved = False
+    match_score = 0
+    match_reasons = []
     if user_matches.exists():
-        is_saved = user_matches.first().is_saved
+        match = user_matches.first()
+        is_saved = match.is_saved
+        match_score = match.match_score
+        match_reasons = match.match_reasons or []
+    
+    # Get similar grants (from same agency or similar focus)
+    similar_grants = Grant.objects.filter(
+        agency=grant.agency
+    ).exclude(id=grant.id)[:3]
+    
+    # Calculate match reasons for display
+    positive_reasons = match_reasons[:4] if match_reasons else []
+    # Generate some negative reasons if needed (this would come from AI matching logic)
+    negative_reasons = []
     
     context = {
         'grant': grant,
+        'live_data': live_grant_data,  # Live data from portal
         'user_matches': user_matches,
         'is_saved': is_saved,
+        'match_score': match_score,
+        'match_reasons': positive_reasons,
+        'negative_reasons': negative_reasons,
+        'similar_grants': similar_grants,
     }
     
     return render(request, 'grants/grant_detail.html', context)

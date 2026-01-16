@@ -43,12 +43,148 @@ class SGGrantsService:
     
     def _fetch_via_api(self):
         """
-        Attempt to fetch grants via API
-        Note: This is a placeholder - actual API endpoint needs to be determined
+        Fetch grants from OurSG Grants Portal API
+        Uses the official API endpoint: /api/v1/grant_metadata/explore_grants
         """
-        # Placeholder for API integration
-        # If API becomes available, implement here
-        raise NotImplementedError("API endpoint not yet available")
+        api_url = f"{self.BASE_URL}/api/v1/grant_metadata/explore_grants"
+        response = self.session.get(api_url, timeout=30)
+        response.raise_for_status()
+        
+        data = response.json()
+        grants_metadata = data.get('grant_metadata', [])
+        
+        grants_data = []
+        for grant_meta in grants_metadata:
+            # Skip inactive grants
+            if grant_meta.get('active') != 'true' or grant_meta.get('enabled') != 'true':
+                continue
+            
+            # Parse closing dates
+            closing_dates = grant_meta.get('closing_dates', {})
+            closing_date_str = None
+            if isinstance(closing_dates, dict):
+                # Get the first available closing date
+                for key, value in closing_dates.items():
+                    if value and value != "Open for Applications" and "closed" not in value.lower():
+                        closing_date_str = value
+                        break
+                    elif value and "Open for Applications" in value:
+                        # Keep as open, no specific date
+                        closing_date_str = None
+                        break
+            
+            # Parse funding amount
+            grant_amount = grant_meta.get('grant_amount')
+            funding_min, funding_max = None, None
+            if grant_amount:
+                funding_min, funding_max = self._parse_funding(grant_amount)
+            
+            # Determine status from API
+            status = grant_meta.get('status', 'open')
+            if status == 'green':
+                grant_status = 'open'
+            elif status == 'red' or 'closed' in str(closing_dates).lower():
+                grant_status = 'closed'
+            else:
+                grant_status = 'open'
+            
+            # Build application URL
+            grant_value = grant_meta.get('value', '')
+            application_url = f"{self.BASE_URL}/grants/{grant_value}/instruction" if grant_value else ""
+            
+            # Build source URL
+            source_url = application_url
+            
+            grant_data = {
+                'external_id': grant_meta.get('id', ''),
+                'title': grant_meta.get('name', ''),
+                'description': grant_meta.get('desc', ''),
+                'agency_name': grant_meta.get('agency_name', 'Unknown'),
+                'agency_code': grant_meta.get('agency_code', ''),
+                'closing_date': self._parse_date(closing_date_str) if closing_date_str else None,
+                'closing_date_text': closing_date_str or "Open for Applications",
+                'funding_min': funding_min,
+                'funding_max': funding_max,
+                'grant_amount_text': grant_amount,
+                'application_url': application_url,
+                'source_url': source_url,
+                'status': grant_status,
+                'applicable_to': grant_meta.get('applicable_to', []),
+                'icon_name': grant_meta.get('agency_code', '').lower(),
+            }
+            
+            grants_data.append(grant_data)
+        
+        return grants_data
+    
+    def fetch_grant_detail(self, grant_value=None, external_id=None):
+        """
+        Fetch detailed grant information from OurSG Grants Portal
+        Can search by grant_value (e.g., 'ssgacg') or external_id
+        """
+        # First, fetch all grants to find the specific one
+        all_grants = self._fetch_via_api()
+        
+        # Find the specific grant
+        grant_detail = None
+        for grant in all_grants:
+            if grant_value and grant.get('application_url', '').endswith(f'/{grant_value}/instruction'):
+                grant_detail = grant
+                break
+            elif external_id and grant.get('external_id') == external_id:
+                grant_detail = grant
+                break
+        
+        if not grant_detail:
+            return None
+        
+        # Try to fetch additional details from the instruction page
+        if grant_detail.get('application_url'):
+            try:
+                additional_details = self._fetch_grant_instruction_page(grant_detail['application_url'])
+                grant_detail.update(additional_details)
+            except Exception as e:
+                print(f"Could not fetch additional details: {e}")
+        
+        return grant_detail
+    
+    def _fetch_grant_instruction_page(self, instruction_url):
+        """
+        Fetch additional grant details from the instruction page
+        Returns additional fields like eligibility, how to apply, etc.
+        """
+        try:
+            response = self.session.get(instruction_url, timeout=30)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            additional_data = {}
+            
+            # Extract eligibility criteria
+            eligibility_sections = soup.find_all(['div', 'section'], class_=re.compile(r'eligibility|who.*apply', re.I))
+            if eligibility_sections:
+                eligibility_text = ' '.join([s.get_text(strip=True) for s in eligibility_sections[:3]])
+                if eligibility_text:
+                    additional_data['eligibility_criteria'] = eligibility_text[:1000]  # Limit length
+            
+            # Extract how to apply information
+            how_to_apply_sections = soup.find_all(['div', 'section'], class_=re.compile(r'how.*apply|application.*process', re.I))
+            if how_to_apply_sections:
+                how_to_apply_text = ' '.join([s.get_text(strip=True) for s in how_to_apply_sections[:3]])
+                if how_to_apply_text:
+                    additional_data['how_to_apply'] = how_to_apply_text[:1000]
+            
+            # Extract any additional funding details
+            funding_sections = soup.find_all(['div', 'section'], class_=re.compile(r'funding|amount|budget', re.I))
+            if funding_sections:
+                funding_text = ' '.join([s.get_text(strip=True) for s in funding_sections[:2]])
+                if funding_text:
+                    additional_data['funding_details'] = funding_text[:500]
+            
+            return additional_data
+        except Exception as e:
+            print(f"Error fetching instruction page: {e}")
+            return {}
     
     def _fetch_via_scraping(self):
         """
@@ -134,6 +270,12 @@ class SGGrantsService:
         if not date_str:
             return None
         
+        date_str = str(date_str).strip()
+        
+        # Skip if it's a status message rather than a date
+        if any(keyword in date_str.lower() for keyword in ['open', 'closed', 'applications', 'tba', 'n/a']):
+            return None
+        
         # Common date formats
         date_formats = [
             '%d %b %Y',
@@ -141,35 +283,86 @@ class SGGrantsService:
             '%Y-%m-%d',
             '%d/%m/%Y',
             '%d-%m-%Y',
+            '%Y-%m-%d %H:%M:%S',  # Handle datetime strings
         ]
         
+        # Try parsing with each format
         for fmt in date_formats:
             try:
-                return datetime.strptime(date_str.strip(), fmt).date()
+                parsed = datetime.strptime(date_str, fmt)
+                return parsed.date()
             except ValueError:
                 continue
+        
+        # Try parsing ISO format or other variations
+        try:
+            # Handle dates like "2024-10-30"
+            if re.match(r'\d{4}-\d{2}-\d{2}', date_str):
+                return datetime.strptime(date_str[:10], '%Y-%m-%d').date()
+        except:
+            pass
         
         return None
     
     def _parse_funding(self, funding_str):
-        """Parse funding amount string to min/max values"""
+        """Parse funding amount string to min/max values (in thousands)"""
         if not funding_str:
             return None, None
         
-        # Extract numbers (handle formats like "$50K - $100K", "$50,000 - $100,000", etc.)
-        numbers = re.findall(r'[\d,]+', funding_str.replace(',', ''))
+        # Handle different formats:
+        # "Up to $20,000.00" -> max = 20
+        # "$50K - $100K" -> min = 50, max = 100
+        # "$50,000 - $100,000" -> min = 50, max = 100
         
+        funding_str = str(funding_str).strip()
+        
+        # Check for "Up to" format
+        if 'up to' in funding_str.lower():
+            # Extract the number
+            numbers = re.findall(r'[\d,]+\.?\d*', funding_str.replace(',', ''))
+            if numbers:
+                try:
+                    val = Decimal(numbers[0])
+                    # Convert to thousands
+                    if val >= 1000:
+                        val = val / 1000
+                    return None, val
+                except:
+                    pass
+        
+        # Check for range format (e.g., "$50K - $100K" or "$50,000 - $100,000")
+        if '-' in funding_str or 'to' in funding_str.lower():
+            numbers = re.findall(r'[\d,]+\.?\d*', funding_str.replace(',', ''))
         if len(numbers) >= 2:
             try:
-                min_val = Decimal(numbers[0]) / 1000  # Convert to thousands
-                max_val = Decimal(numbers[1]) / 1000
+                min_val = Decimal(numbers[0])
+                max_val = Decimal(numbers[1])
+                # Convert to thousands if needed
+                if min_val >= 1000:
+                        min_val = min_val / 1000
+                if max_val >= 1000:
+                        max_val = max_val / 1000
                 return min_val, max_val
             except:
                 pass
+
         elif len(numbers) == 1:
             try:
-                val = Decimal(numbers[0]) / 1000
+                val = Decimal(numbers[0])
+                if val >= 1000:
+                    val = val / 1000
                 return val, val
+            except:
+                pass
+        
+        # Try to extract any number
+        numbers = re.findall(r'[\d,]+\.?\d*', funding_str.replace(',', ''))
+        if numbers:
+            try:
+                val = Decimal(numbers[0])
+                if val >= 1000:
+                    val = val / 1000
+                return None, val
             except:
                 pass
         
@@ -186,18 +379,40 @@ class SGGrantsService:
         updated_count = 0
         
         for grant_data in grants_data:
-            # Get or create agency
-            agency, _ = Agency.objects.get_or_create(
-                name=grant_data.get('agency_name', 'Unknown'),
-                defaults={
-                    'acronym': self._extract_acronym(grant_data.get('agency_name', 'Unknown')),
-                }
-            )
+            # Get or create agency - use agency_code if available, otherwise extract acronym
+            agency_code = grant_data.get('agency_code', '').upper()
+            agency_name = grant_data.get('agency_name', 'Unknown')
+            
+            if agency_code:
+                # Try to get by acronym first
+                agency, created_agency = Agency.objects.get_or_create(
+                    acronym=agency_code,
+                    defaults={'name': agency_name}
+                )
+                # Update name if it changed
+                if not created_agency and agency.name != agency_name:
+                    agency.name = agency_name
+                    agency.save()
+            else:
+                # Fallback to name-based lookup
+                agency, _ = Agency.objects.get_or_create(
+                        name=agency_name,
+                        defaults={'acronym': self._extract_acronym(agency_name)}
+                    )
+            
+            # Use external_id as primary identifier, fallback to title+agency
+            external_id = grant_data.get('external_id', '')
+            lookup_kwargs = {}
+            if external_id:
+                lookup_kwargs['external_id'] = external_id
+            else:
+                # Fallback: use title and agency
+                lookup_kwargs['title'] = grant_data.get('title', '')
+                lookup_kwargs['agency'] = agency
             
             # Get or create grant
             grant, created = Grant.objects.update_or_create(
-                external_id=grant_data.get('external_id', ''),
-                source_url=grant_data.get('source_url', ''),
+                **lookup_kwargs,
                 defaults={
                     'title': grant_data.get('title', ''),
                     'agency': agency,
@@ -207,7 +422,9 @@ class SGGrantsService:
                     'closing_date': grant_data.get('closing_date'),
                     'application_url': grant_data.get('application_url', ''),
                     'source_url': grant_data.get('source_url', ''),
-                    'status': self._determine_status(grant_data.get('closing_date')),
+                    'status': grant_data.get('status', 'open'),
+                    'icon_name': grant_data.get('icon_name', ''),
+                    'external_id': external_id,
                 }
             )
             
