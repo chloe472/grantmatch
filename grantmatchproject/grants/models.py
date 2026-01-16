@@ -96,6 +96,14 @@ class Project(models.Model):
     duration_years = models.CharField(max_length=50, blank=True)
     kpis = models.TextField(blank=True, help_text="Key Performance Indicators")
     service_outcomes = models.TextField(blank=True)
+    # New fields for enhanced project form
+    beneficiary_types = models.JSONField(default=list, help_text="List of beneficiary types (multi-select)")
+    target_beneficiaries_count = models.IntegerField(null=True, blank=True, help_text="Target number of beneficiaries")
+    project_start_date = models.DateField(null=True, blank=True, help_text="Project start date")
+    project_end_date = models.DateField(null=True, blank=True, help_text="Project end date")
+    interested_in = models.JSONField(default=list, help_text="List of interest areas (multi-select)")
+    need_support_for = models.JSONField(default=list, help_text="List of support types needed (multi-select)")
+    want_support_from = models.JSONField(default=list, help_text="List of agencies to get support from (multi-select)")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

@@ -1,53 +1,768 @@
 {% extends 'grants/base.html' %}
 {% load static %}
 
-{% block title %}Create Project - Granted{% endblock %}
+{% block title %}Create New Project - Granted{% endblock %}
+
+{% block extra_css %}
+<style>
+    .project-form-modal {
+        background: var(--bg-white);
+        border-radius: 12px;
+        padding: 32px;
+        max-width: 800px;
+        margin: 0 auto;
+        box-shadow: var(--shadow-lg);
+    }
+
+    .form-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 24px;
+    }
+
+    .form-header h1 {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin-bottom: 4px;
+    }
+
+    .form-subtitle {
+        font-size: 14px;
+        color: var(--text-gray);
+    }
+
+    .close-btn {
+        background: none;
+        border: none;
+        font-size: 24px;
+        color: var(--text-gray);
+        cursor: pointer;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+
+    .close-btn:hover {
+        background: var(--bg-gray-light);
+        color: var(--text-dark);
+    }
+
+    .form-group {
+        margin-bottom: 24px;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 8px;
+        color: var(--text-dark);
+        font-size: 14px;
+    }
+
+    .form-group label .required {
+        color: #EF4444;
+        margin-left: 2px;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        font-size: 14px;
+        transition: all 0.2s;
+        font-family: inherit;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    textarea.form-control {
+        min-height: 120px;
+        resize: vertical;
+    }
+
+    /* Funding Amount Slider */
+    .funding-slider-container {
+        margin-top: 12px;
+    }
+
+    .funding-range-display {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        font-size: 14px;
+        color: var(--text-gray);
+    }
+
+    .funding-inputs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .funding-input-wrapper {
+        position: relative;
+    }
+
+    .funding-input-wrapper::before {
+        content: '$';
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-gray);
+        font-weight: 500;
+    }
+
+    .funding-input-wrapper input {
+        padding-left: 28px;
+    }
+
+    .slider-wrapper {
+        position: relative;
+        height: 6px;
+        background: var(--bg-gray-light);
+        border-radius: 3px;
+        margin: 24px 0;
+    }
+
+    .slider-track {
+        position: absolute;
+        height: 6px;
+        background: var(--primary-blue);
+        border-radius: 3px;
+        top: 0;
+    }
+
+    .slider-handle {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        background: var(--primary-blue);
+        border: 3px solid white;
+        border-radius: 50%;
+        cursor: grab;
+        top: 50%;
+        transform: translateY(-50%);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        z-index: 2;
+    }
+
+    .slider-handle:active {
+        cursor: grabbing;
+    }
+
+    .slider-handle:hover {
+        transform: translateY(-50%) scale(1.1);
+    }
+
+    /* Date Picker */
+    .date-input-wrapper {
+        position: relative;
+    }
+
+    .date-input-wrapper .calendar-icon {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-gray);
+        pointer-events: none;
+    }
+
+    /* Multi-select Dropdown */
+    .multi-select-wrapper {
+        position: relative;
+    }
+
+    .multi-select-display {
+        padding: 12px 16px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        background: var(--bg-white);
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        min-height: 44px;
+    }
+
+    .multi-select-display:hover {
+        border-color: var(--primary-blue);
+    }
+
+    .multi-select-display.active {
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .multi-select-selected {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        flex: 1;
+    }
+
+    .multi-select-tag {
+        background: var(--primary-blue);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .multi-select-tag .remove {
+        cursor: pointer;
+        font-weight: bold;
+    }
+
+    .multi-select-placeholder {
+        color: var(--text-light);
+        font-size: 14px;
+    }
+
+    .multi-select-arrow {
+        color: var(--text-gray);
+        transition: transform 0.2s;
+    }
+
+    .multi-select-arrow.open {
+        transform: rotate(180deg);
+    }
+
+    .multi-select-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: var(--bg-white);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        margin-top: 4px;
+        max-height: 300px;
+        overflow-y: auto;
+        z-index: 1000;
+        box-shadow: var(--shadow-lg);
+        display: none;
+    }
+
+    .multi-select-dropdown.show {
+        display: block;
+    }
+
+    .multi-select-option {
+        padding: 12px 16px;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: background 0.2s;
+    }
+
+    .multi-select-option:hover {
+        background: var(--bg-gray-light);
+    }
+
+    .multi-select-option input[type="checkbox"] {
+        margin-right: 8px;
+    }
+
+    .multi-select-option-count {
+        color: var(--text-gray);
+        font-size: 12px;
+    }
+
+    /* AI Matching Info Box */
+    .ai-matching-box {
+        background: #EFF6FF;
+        border: 1px solid var(--primary-blue);
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .ai-matching-icon {
+        color: var(--primary-blue);
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+
+    .ai-matching-content {
+        flex: 1;
+    }
+
+    .ai-matching-content strong {
+        display: block;
+        color: var(--text-dark);
+        margin-bottom: 4px;
+        font-size: 14px;
+    }
+
+    .ai-matching-content p {
+        color: var(--text-gray);
+        font-size: 13px;
+        margin: 0;
+    }
+
+    /* Form Actions */
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-start;
+        margin-top: 32px;
+    }
+
+    .btn-primary {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-secondary {
+        background: var(--bg-white);
+        color: var(--text-dark);
+        border: 1px solid var(--border-color);
+    }
+
+    .btn-secondary:hover {
+        background: var(--bg-gray-light);
+    }
+
+    /* Input with icon */
+    .input-with-icon {
+        position: relative;
+    }
+
+    .input-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-gray);
+        pointer-events: none;
+    }
+
+    .input-with-icon input {
+        padding-left: 40px;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="form-page">
-    <div class="form-container">
-        <h1>Create New Project</h1>
-        <form method="post">
-            {% csrf_token %}
-            <div class="form-group">
-                <label>Project Title</label>
-                <input type="text" name="title" required class="form-control">
-            </div>
-            <div class="form-group">
-                <label>Focus Area</label>
-                <input type="text" name="focus_area" placeholder="e.g., dementia care, active aging" class="form-control">
-            </div>
-            <div class="form-group">
-                <label>Description</label>
-                <textarea name="description" rows="5" required class="form-control"></textarea>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Budget Required (Min)</label>
-                    <input type="number" name="budget_required_min" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label>Budget Required (Max)</label>
-                    <input type="number" name="budget_required_max" class="form-control">
-                </div>
-            </div>
-            <div class="form-group">
-                <label>Duration</label>
-                <input type="text" name="duration_years" placeholder="e.g., 2-3 years" class="form-control">
-            </div>
-            <div class="form-group">
-                <label>Key Performance Indicators (KPIs)</label>
-                <textarea name="kpis" rows="3" class="form-control"></textarea>
-            </div>
-            <div class="form-group">
-                <label>Service Outcomes</label>
-                <textarea name="service_outcomes" rows="3" class="form-control"></textarea>
-            </div>
-            <div class="form-actions">
-                <a href="{% url 'grants:projects' %}" class="btn btn-secondary">Cancel</a>
-                <button type="submit" class="btn btn-primary">Create Project</button>
-            </div>
-        </form>
+<div class="project-form-modal">
+    <div class="form-header">
+        <div>
+            <h1>Create New Project</h1>
+            <p class="form-subtitle">Tell us about your project to find matching grants.</p>
+        </div>
+        <a href="{% url 'grants:projects' %}" class="close-btn" title="Close">×</a>
     </div>
+
+    <form method="post" id="projectForm">
+        {% csrf_token %}
+        
+        <!-- Project Name -->
+        <div class="form-group">
+            <label>Project Name<span class="required">*</span></label>
+            <input type="text" name="title" class="form-control" placeholder="e.g., Digital Literacy Program for Seniors" required>
+        </div>
+
+        <!-- Project Description -->
+        <div class="form-group">
+            <label>Project Description<span class="required">*</span></label>
+            <textarea name="description" class="form-control" placeholder="Describe your project goals, activities, and expected outcomes..." required></textarea>
+        </div>
+
+        <!-- Funding Amount Needed -->
+        <div class="form-group">
+            <label>Funding Amount Needed<span class="required">*</span></label>
+            <div class="funding-range-display">
+                <span>Min: $<span id="minAmountDisplay">1,000</span> SGD</span>
+                <span>Max: $<span id="maxAmountDisplay">100,000</span> SGD</span>
+            </div>
+            <div class="funding-inputs">
+                <div class="funding-input-wrapper">
+                    <input type="number" id="minAmountInput" name="budget_required_min" class="form-control" min="1000" max="1000000" value="1000" step="1000" required>
+                </div>
+                <div class="funding-input-wrapper">
+                    <input type="number" id="maxAmountInput" name="budget_required_max" class="form-control" min="1000" max="1000000" value="100000" step="1000" required>
+                </div>
+            </div>
+            <div class="slider-wrapper">
+                <div class="slider-track" id="sliderTrack"></div>
+                <div class="slider-handle" id="minHandle"></div>
+                <div class="slider-handle" id="maxHandle"></div>
+            </div>
+        </div>
+
+        <!-- Type of Beneficiaries -->
+        <div class="form-group">
+            <label>Type of Beneficiaries<span class="required">*</span></label>
+            <div class="multi-select-wrapper">
+                <div class="multi-select-display" id="beneficiaryTypesDisplay">
+                    <div class="multi-select-selected" id="beneficiaryTypesSelected">
+                        <span class="multi-select-placeholder">Select beneficiary types...</span>
+                    </div>
+                    <svg class="multi-select-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </div>
+                <div class="multi-select-dropdown" id="beneficiaryTypesDropdown">
+                    {% for option in beneficiary_types_options %}
+                    <div class="multi-select-option">
+                        <label style="flex: 1; cursor: pointer; display: flex; align-items: center;">
+                            <input type="checkbox" name="beneficiary_types" value="{{ option }}" style="margin-right: 8px;">
+                            <span>{{ option }}</span>
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Target Number of Beneficiaries -->
+        <div class="form-group">
+            <label>Target Number of Beneficiaries</label>
+            <div class="input-with-icon">
+                <svg class="input-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="6" r="2" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M4 14C4 11 6 10 8 10C10 10 12 11 12 14" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+                <input type="number" name="target_beneficiaries_count" class="form-control" placeholder="e.g., 200" min="0">
+            </div>
+        </div>
+
+        <!-- Project Timeline -->
+        <div class="form-group">
+            <label>Project Timeline<span class="required">*</span></label>
+            <div class="date-input-wrapper">
+                <input type="date" name="project_start_date" class="form-control" required>
+                <input type="date" name="project_end_date" class="form-control" style="margin-top: 8px;" required>
+            </div>
+        </div>
+
+        <!-- I'm interested in -->
+        <div class="form-group">
+            <label>I'm interested in</label>
+            <div class="multi-select-wrapper">
+                <div class="multi-select-display" id="interestedInDisplay">
+                    <div class="multi-select-selected" id="interestedInSelected">
+                        <span class="multi-select-placeholder">Select interest areas...</span>
+                    </div>
+                    <svg class="multi-select-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </div>
+                <div class="multi-select-dropdown" id="interestedInDropdown">
+                    {% for option, count in interested_in_options %}
+                    <div class="multi-select-option">
+                        <label style="flex: 1; cursor: pointer; display: flex; align-items: center;">
+                            <input type="checkbox" name="interested_in" value="{{ option }}" style="margin-right: 8px;">
+                            <span>{{ option }}</span>
+                        </label>
+                        <span class="multi-select-option-count">({{ count }})</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- I need support for -->
+        <div class="form-group">
+            <label>I need support for</label>
+            <div class="multi-select-wrapper">
+                <div class="multi-select-display" id="needSupportForDisplay">
+                    <div class="multi-select-selected" id="needSupportForSelected">
+                        <span class="multi-select-placeholder">Select support types...</span>
+                    </div>
+                    <svg class="multi-select-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </div>
+                <div class="multi-select-dropdown" id="needSupportForDropdown">
+                    {% for option, count in need_support_for_options %}
+                    <div class="multi-select-option">
+                        <label style="flex: 1; cursor: pointer; display: flex; align-items: center;">
+                            <input type="checkbox" name="need_support_for" value="{{ option }}" style="margin-right: 8px;">
+                            <span>{{ option }}</span>
+                        </label>
+                        <span class="multi-select-option-count">({{ count }})</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- I want support from -->
+        <div class="form-group">
+            <label>I want support from</label>
+            <div class="multi-select-wrapper">
+                <div class="multi-select-display" id="wantSupportFromDisplay">
+                    <div class="multi-select-selected" id="wantSupportFromSelected">
+                        <span class="multi-select-placeholder">Select agencies...</span>
+                    </div>
+                    <svg class="multi-select-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </div>
+                <div class="multi-select-dropdown" id="wantSupportFromDropdown">
+                    {% for agency in agencies %}
+                    <div class="multi-select-option">
+                        <label style="flex: 1; cursor: pointer; display: flex; align-items: center;">
+                            <input type="checkbox" name="want_support_from" value="{{ agency.acronym }}" style="margin-right: 8px;">
+                            <span>{{ agency.acronym|upper }} - {{ agency.name }}</span>
+                        </label>
+                        {% if agency.grant_count > 0 %}
+                        <span class="multi-select-option-count">({{ agency.grant_count }})</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Matching Info Box -->
+        <div class="ai-matching-box">
+            <svg class="ai-matching-icon" width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor"/>
+            </svg>
+            <div class="ai-matching-content">
+                <strong>AI-Powered Matching</strong>
+                <p>Our AI will analyze your project details and match you with the most relevant grants across 200+ funding opportunities</p>
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <path d="M10 2L12.09 6.26L17 7.27L13 10.14L13.82 15.02L10 13.77L6.18 15.02L7 10.14L3 7.27L7.91 6.26L10 2Z" fill="currentColor"/>
+                </svg>
+                Find Matching Grants
+            </button>
+            <a href="{% url 'grants:projects' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Double-sided slider functionality
+    (function() {
+        const minInput = document.getElementById('minAmountInput');
+        const maxInput = document.getElementById('maxAmountInput');
+        const minHandle = document.getElementById('minHandle');
+        const maxHandle = document.getElementById('maxHandle');
+        const sliderTrack = document.getElementById('sliderTrack');
+        const minDisplay = document.getElementById('minAmountDisplay');
+        const maxDisplay = document.getElementById('maxAmountDisplay');
+        
+        const minValue = 1000;
+        const maxValue = 1000000;
+        
+        function updateSlider() {
+            const min = Math.max(minValue, Math.min(maxValue, parseFloat(minInput.value) || minValue));
+            const max = Math.max(minValue, Math.min(maxValue, parseFloat(maxInput.value) || maxValue));
+            
+            // Ensure min <= max
+            if (min > max) {
+                if (minInput === document.activeElement) {
+                    minInput.value = max;
+                } else {
+                    maxInput.value = min;
+                }
+                return updateSlider();
+            }
+            
+            const minPercent = ((min - minValue) / (maxValue - minValue)) * 100;
+            const maxPercent = ((max - minValue) / (maxValue - minValue)) * 100;
+            
+            minHandle.style.left = minPercent + '%';
+            maxHandle.style.left = maxPercent + '%';
+            
+            sliderTrack.style.left = minPercent + '%';
+            sliderTrack.style.width = (maxPercent - minPercent) + '%';
+            
+            minDisplay.textContent = min.toLocaleString();
+            maxDisplay.textContent = max.toLocaleString();
+        }
+        
+        function valueToPercent(value) {
+            return ((value - minValue) / (maxValue - minValue)) * 100;
+        }
+        
+        function percentToValue(percent) {
+            return minValue + (percent / 100) * (maxValue - minValue);
+        }
+        
+        function updateFromHandle(handle, isMin) {
+            return function(e) {
+                const rect = sliderTrack.parentElement.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                let percent = (x / rect.width) * 100;
+                percent = Math.max(0, Math.min(100, percent));
+                
+                let value = Math.round(percentToValue(percent) / 1000) * 1000;
+                value = Math.max(minValue, Math.min(maxValue, value));
+                
+                if (isMin) {
+                    const max = parseFloat(maxInput.value);
+                    if (value >= max) {
+                        value = Math.max(minValue, max - 1000);
+                    }
+                    minInput.value = value;
+                } else {
+                    const min = parseFloat(minInput.value);
+                    if (value <= min) {
+                        value = Math.min(maxValue, min + 1000);
+                    }
+                    maxInput.value = value;
+                }
+                
+                updateSlider();
+            };
+        }
+        
+        minInput.addEventListener('input', function() {
+            let min = parseFloat(minInput.value) || minValue;
+            const max = parseFloat(maxInput.value) || maxValue;
+            
+            if (min < minValue) min = minValue;
+            if (min > maxValue) min = maxValue;
+            if (min >= max) min = Math.max(minValue, max - 1000);
+            
+            minInput.value = min;
+            updateSlider();
+        });
+        
+        maxInput.addEventListener('input', function() {
+            const min = parseFloat(minInput.value) || minValue;
+            let max = parseFloat(maxInput.value) || maxValue;
+            
+            if (max < minValue) max = minValue;
+            if (max > maxValue) max = maxValue;
+            if (max <= min) max = Math.min(maxValue, min + 1000);
+            
+            maxInput.value = max;
+            updateSlider();
+        });
+        
+        let isDragging = false;
+        let activeHandle = null;
+        
+        function startDrag(handle, isMin) {
+            return function(e) {
+                isDragging = true;
+                activeHandle = { handle, isMin };
+                e.preventDefault();
+            };
+        }
+        
+        function drag(e) {
+            if (!isDragging || !activeHandle) return;
+            updateFromHandle(activeHandle.handle, activeHandle.isMin)(e);
+        }
+        
+        function stopDrag() {
+            isDragging = false;
+            activeHandle = null;
+        }
+        
+        minHandle.addEventListener('mousedown', startDrag(minHandle, true));
+        maxHandle.addEventListener('mousedown', startDrag(maxHandle, false));
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('mouseup', stopDrag);
+        
+        // Handle window resize
+        window.addEventListener('resize', updateSlider);
+        
+        // Initial update
+        updateSlider();
+    })();
+    
+    // Multi-select dropdown functionality
+    function initMultiSelect(displayId, selectedId, dropdownId) {
+        const display = document.getElementById(displayId);
+        const selected = document.getElementById(selectedId);
+        const dropdown = document.getElementById(dropdownId);
+        const arrow = display.querySelector('.multi-select-arrow');
+        const checkboxes = dropdown.querySelectorAll('input[type="checkbox"]');
+        
+        function updateDisplay() {
+            const checked = Array.from(checkboxes).filter(cb => cb.checked);
+            selected.innerHTML = '';
+            
+            if (checked.length === 0) {
+                selected.innerHTML = '<span class="multi-select-placeholder">Select options...</span>';
+            } else {
+                checked.forEach(cb => {
+                    const tag = document.createElement('span');
+                    tag.className = 'multi-select-tag';
+                    tag.innerHTML = cb.value + ' <span class="remove">×</span>';
+                    tag.querySelector('.remove').addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        cb.checked = false;
+                        updateDisplay();
+                    });
+                    selected.appendChild(tag);
+                });
+            }
+        }
+        
+        display.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const isOpen = dropdown.classList.contains('show');
+            
+            // Close all other dropdowns
+            document.querySelectorAll('.multi-select-dropdown').forEach(d => d.classList.remove('show'));
+            document.querySelectorAll('.multi-select-display').forEach(d => d.classList.remove('active'));
+            document.querySelectorAll('.multi-select-arrow').forEach(a => a.classList.remove('open'));
+            
+            if (!isOpen) {
+                dropdown.classList.add('show');
+                display.classList.add('active');
+                arrow.classList.add('open');
+            }
+        });
+        
+        checkboxes.forEach(cb => {
+            cb.addEventListener('change', updateDisplay);
+        });
+        
+        document.addEventListener('click', function(e) {
+            if (!display.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.classList.remove('show');
+                display.classList.remove('active');
+                arrow.classList.remove('open');
+            }
+        });
+        
+        updateDisplay();
+    }
+    
+    // Initialize all multi-selects
+    initMultiSelect('beneficiaryTypesDisplay', 'beneficiaryTypesSelected', 'beneficiaryTypesDropdown');
+    initMultiSelect('interestedInDisplay', 'interestedInSelected', 'interestedInDropdown');
+    initMultiSelect('needSupportForDisplay', 'needSupportForSelected', 'needSupportForDropdown');
+    initMultiSelect('wantSupportFromDisplay', 'wantSupportFromSelected', 'wantSupportFromDropdown');
+</script>
 {% endblock %}
