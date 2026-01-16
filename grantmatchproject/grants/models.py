@@ -137,9 +137,8 @@ class GrantMatch(models.Model):
 class Application(models.Model):
     """Grant applications submitted by users"""
     STATUS_CHOICES = [
-        ('draft', 'Draft'),
-        ('submitted', 'Submitted'),
-        ('under_review', 'Under Review'),
+        ('in_progress', 'In Progress'),
+        ('submitted', 'Submitted (In Review)'),
         ('approved', 'Approved'),
         ('rejected', 'Rejected'),
     ]
@@ -147,7 +146,7 @@ class Application(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='applications')
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='applications')
     grant = models.ForeignKey(Grant, on_delete=models.CASCADE, related_name='applications')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='in_progress')
     submitted_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
