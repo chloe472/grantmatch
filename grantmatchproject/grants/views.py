@@ -4,6 +4,7 @@ from django.contrib.auth import login, authenticate
 from django.contrib.auth.forms import UserCreationForm
 from django.db.models import Q, Count
 from django.utils import timezone
+from django.http import JsonResponse
 from datetime import timedelta
 import json
 from .models import Grant, Project, GrantMatch, Application, Notification, Agency, UserProfile
@@ -286,6 +287,12 @@ def grant_detail(request, grant_id):
         match_score = match.match_score
         match_reasons = match.match_reasons or []
     
+    # Check if user has an existing application for this grant
+    existing_application = Application.objects.filter(
+        user=request.user,
+        grant=grant
+    ).first()
+    
     # Get similar grants (from same agency or similar focus)
     similar_grants = Grant.objects.filter(
         agency=grant.agency
@@ -305,6 +312,7 @@ def grant_detail(request, grant_id):
         'match_reasons': positive_reasons,
         'negative_reasons': negative_reasons,
         'similar_grants': similar_grants,
+        'existing_application': existing_application,
     }
     
     return render(request, 'grants/grant_detail.html', context)
@@ -342,12 +350,58 @@ def toggle_save_grant(request, grant_id):
 
 @login_required
 def applications_list(request):
-    """List user's applications"""
+    """List user's applications in Kanban board format"""
     applications = Application.objects.filter(
         user=request.user
-    ).select_related('grant', 'grant__agency', 'project').order_by('-created_at')
+    ).select_related('grant', 'grant__agency', 'project').order_by('-updated_at')
     
-    return render(request, 'grants/applications.html', {'applications': applications})
+    # Group applications by status
+    status_groups = {
+        'in_progress': [],
+        'submitted': [],
+        'approved': [],
+        'rejected': [],
+    }
+    
+    for app in applications:
+        if app.status in status_groups:
+            status_groups[app.status].append(app)
+    
+    context = {
+        'applications': applications,
+        'status_groups': status_groups,
+    }
+    
+    return render(request, 'grants/applications.html', context)
+
+
+@login_required
+def start_application(request, grant_id):
+    """Start a new application - creates application with 'in_progress' status"""
+    grant = get_object_or_404(Grant, id=grant_id)
+    
+    # Get user's first project (or create a default one if needed)
+    project = Project.objects.filter(user=request.user).first()
+    
+    if not project:
+        # If user has no projects, redirect to create one
+        return redirect('grants:project_create')
+    
+    # Check if application already exists
+    application, created = Application.objects.get_or_create(
+        user=request.user,
+        grant=grant,
+        project=project,
+        defaults={'status': 'in_progress'}
+    )
+    
+    if not created:
+        # If application exists but is not in progress, update it
+        if application.status != 'in_progress':
+            application.status = 'in_progress'
+            application.save()
+    
+    return redirect('grants:applications')
 
 
 @login_required
@@ -364,7 +418,7 @@ def application_create(request, grant_id):
             user=request.user,
             project=project,
             grant=grant,
-            status='draft',
+            status='in_progress',
             notes=request.POST.get('notes', '')
         )
         return redirect('grants:applications')
@@ -375,6 +429,31 @@ def application_create(request, grant_id):
     }
     
     return render(request, 'grants/application_form.html', context)
+
+
+@login_required
+def update_application_status(request, application_id):
+    """Update application status via drag-and-drop"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    application = get_object_or_404(Application, id=application_id, user=request.user)
+    new_status = request.POST.get('status')
+    
+    # Validate status
+    valid_statuses = ['in_progress', 'submitted', 'approved', 'rejected']
+    if new_status not in valid_statuses:
+        return JsonResponse({'error': 'Invalid status'}, status=400)
+    
+    application.status = new_status
+    
+    # Set submitted_at if status is 'submitted'
+    if new_status == 'submitted' and not application.submitted_at:
+        application.submitted_at = timezone.now()
+    
+    application.save()
+    
+    return JsonResponse({'success': True, 'status': new_status})
 
 
 @login_required

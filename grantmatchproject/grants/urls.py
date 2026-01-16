@@ -11,8 +11,10 @@ urlpatterns = [
     path('grants/', views.grants_list, name='grants_list'),
     path('grants/<int:grant_id>/', views.grant_detail, name='grant_detail'),
     path('grants/<int:grant_id>/save/', views.toggle_save_grant, name='toggle_save_grant'),
+    path('grants/<int:grant_id>/start-application/', views.start_application, name='start_application'),
     path('saved/', views.saved_grants, name='saved_grants'),
     path('applications/', views.applications_list, name='applications'),
+    path('applications/<int:application_id>/update-status/', views.update_application_status, name='update_application_status'),
     path('applications/create/<int:grant_id>/', views.application_create, name='application_create'),
     path('settings/', views.settings_view, name='settings'),
 ]

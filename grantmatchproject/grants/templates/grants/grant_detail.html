@@ -303,10 +303,25 @@
 
             <!-- Action Buttons -->
             <div class="action-buttons-card">
-                {% if grant.application_url or live_data.application_url %}
-                <a href="{{ live_data.application_url|default:grant.application_url }}" target="_blank" class="btn btn-primary btn-block">
-                    Start Application
-                </a>
+                {% if existing_application %}
+                    <a href="{% url 'grants:applications' %}" class="btn btn-primary btn-block" style="margin-bottom: 12px;">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 4H16V16H4V4Z"/>
+                            <path d="M7 8H13M7 11H13M7 14H10"/>
+                        </svg>
+                        View Application ({{ existing_application.get_status_display }})
+                    </a>
+                {% else %}
+                    <form method="post" action="{% url 'grants:start_application' grant.id %}" style="margin-bottom: 12px;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M10 3L3 7V13L10 17L17 13V7L10 3Z"/>
+                                <path d="M10 10V17M3 7L10 10L17 7"/>
+                            </svg>
+                            Start Application
+                        </button>
+                    </form>
                 {% endif %}
                 <button class="btn btn-secondary btn-block" onclick="toggleSave({{ grant.id }})">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="{% if is_saved %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2">
