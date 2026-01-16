@@ -108,7 +108,7 @@
                 <div class="grant-card-actions">
                     <a href="{% url 'grants:grant_detail' match.grant.id %}" class="btn btn-primary btn-sm">View Details</a>
                     <button class="btn-icon" onclick="toggleSave({{ match.grant.id }})">
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="{% if match.is_saved %}currentColor{% else %}none%}" stroke="currentColor" stroke-width="2">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="{% if match.is_saved %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2">
                             <path d="M10 15L5 10L6.5 8.5L10 12L13.5 8.5L15 10L10 15Z"/>
                         </svg>
                     </button>
