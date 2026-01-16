@@ -118,8 +118,20 @@
                 <!-- About Tab -->
                 <div id="tab-about" class="tab-pane active">
                     <div class="detail-section">
-                        <h2>Description</h2>
-                        <p>{{ live_data.description|default:grant.description }}</p>
+                        <h2>About this Grant</h2>
+                        {% if live_data.about_grant %}
+                        <div class="grant-description">
+                            {{ live_data.about_grant|linebreaks }}
+                        </div>
+                        {% elif live_data.description %}
+                        <div class="grant-description">
+                            {{ live_data.description|linebreaks }}
+                        </div>
+                        {% else %}
+                        <div class="grant-description">
+                            <p>{{ grant.description }}</p>
+                        </div>
+                        {% endif %}
                     </div>
                     {% if live_data.focus_area or grant.focus_area %}
                     <div class="detail-section">
@@ -134,11 +146,19 @@
                 <!-- Who Can Apply Tab -->
                 <div id="tab-who" class="tab-pane">
                     <div class="detail-section">
-                        <h2>Eligibility Criteria</h2>
-                        {% if live_data.eligibility_criteria %}
-                        <p>{{ live_data.eligibility_criteria }}</p>
+                        <h2>Who Can Apply</h2>
+                        {% if live_data.who_can_apply %}
+                        <div class="eligibility-content">
+                            {{ live_data.who_can_apply|linebreaks }}
+                        </div>
+                        {% elif live_data.eligibility_criteria %}
+                        <div class="eligibility-content">
+                            {{ live_data.eligibility_criteria|linebreaks }}
+                        </div>
                         {% elif grant.eligibility_criteria %}
-                        <p>{{ grant.eligibility_criteria }}</p>
+                        <div class="eligibility-content">
+                            <p>{{ grant.eligibility_criteria }}</p>
+                        </div>
                         {% else %}
                         <p>Please check the official grant page for detailed eligibility criteria.</p>
                         {% endif %}
@@ -158,7 +178,12 @@
                 <!-- When to Apply Tab -->
                 <div id="tab-when" class="tab-pane">
                     <div class="detail-section">
-                        <h2>Application Timeline</h2>
+                        <h2>When to Apply</h2>
+                        {% if live_data.when_to_apply %}
+                        <div class="when-to-apply-content">
+                            {{ live_data.when_to_apply|linebreaks }}
+                        </div>
+                        {% endif %}
                         <div class="timeline-info">
                             {% if grant.opening_date %}
                             <div class="timeline-item">
@@ -188,19 +213,22 @@
                 <!-- Funding Tab -->
                 <div id="tab-funding" class="tab-pane">
                     <div class="detail-section">
-                        <h2>Funding Information</h2>
+                        <h2>How Much Funding Can You Receive</h2>
+                        {% if live_data.funding_info %}
+                        <div class="funding-info-content">
+                            {{ live_data.funding_info|linebreaks }}
+                        </div>
+                        {% elif live_data.funding_details %}
+                        <div class="funding-info-content">
+                            {{ live_data.funding_details|linebreaks }}
+                        </div>
+                        {% endif %}
                         <div class="funding-info">
                             <div class="funding-amount-large">
                                 {{ grant.funding_range }}
                             </div>
                             {% if live_data.grant_amount_text %}
                             <p>{{ live_data.grant_amount_text }}</p>
-                            {% endif %}
-                            {% if live_data.funding_details %}
-                            <div class="funding-details">
-                                <h3>Additional Funding Details</h3>
-                                <p>{{ live_data.funding_details }}</p>
-                            </div>
                             {% endif %}
                         </div>
                     </div>
@@ -209,13 +237,21 @@
                 <!-- How to Apply Tab -->
                 <div id="tab-how" class="tab-pane">
                     <div class="detail-section">
-                        <h2>Application Process</h2>
+                        <h2>How to Apply</h2>
                         {% if live_data.how_to_apply %}
                         <div class="how-to-apply-content">
                             {{ live_data.how_to_apply|linebreaks }}
                         </div>
                         {% else %}
                         <p>Please visit the official grant page for detailed application instructions.</p>
+                        {% endif %}
+                        {% if live_data.required_documents %}
+                        <div class="required-documents">
+                            <h3>Required Documents</h3>
+                            <div class="documents-content">
+                                {{ live_data.required_documents|linebreaks }}
+                            </div>
+                        </div>
                         {% endif %}
                         {% if grant.application_url or live_data.application_url %}
                         <div class="apply-actions">
@@ -323,6 +359,22 @@
 
 {% block extra_js %}
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set up tab button click handlers
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.addEventListener('click', function() {
+            const tabName = this.textContent.trim().toLowerCase()
+                .replace('about this grant', 'about')
+                .replace('who can apply', 'who')
+                .replace('when to apply', 'when')
+                .replace('how much funding can you receive?', 'funding')
+                .replace('how to apply', 'how');
+            
+            showTab(tabName);
+        });
+    });
+});
+
 function showTab(tabName) {
     // Hide all tab panes
     document.querySelectorAll('.tab-pane').forEach(pane => {
@@ -335,10 +387,15 @@ function showTab(tabName) {
     });
     
     // Show selected tab pane
-    document.getElementById('tab-' + tabName).classList.add('active');
+    const targetPane = document.getElementById('tab-' + tabName);
+    if (targetPane) {
+        targetPane.classList.add('active');
+    }
     
     // Add active class to clicked button
-    event.target.classList.add('active');
+    if (event && event.target) {
+        event.target.classList.add('active');
+    }
 }
 
 function toggleSave(grantId) {

@@ -150,8 +150,8 @@ class SGGrantsService:
     
     def _fetch_grant_instruction_page(self, instruction_url):
         """
-        Fetch additional grant details from the instruction page
-        Returns additional fields like eligibility, how to apply, etc.
+        Fetch detailed grant information from the instruction page
+        Extracts: About, Who can apply, When to apply, Funding, How to apply
         """
         try:
             response = self.session.get(instruction_url, timeout=30)
@@ -160,31 +160,132 @@ class SGGrantsService:
             soup = BeautifulSoup(response.content, 'html.parser')
             additional_data = {}
             
-            # Extract eligibility criteria
-            eligibility_sections = soup.find_all(['div', 'section'], class_=re.compile(r'eligibility|who.*apply', re.I))
-            if eligibility_sections:
-                eligibility_text = ' '.join([s.get_text(strip=True) for s in eligibility_sections[:3]])
-                if eligibility_text:
-                    additional_data['eligibility_criteria'] = eligibility_text[:1000]  # Limit length
+            # Find the main content area
+            main_content = soup.find('div', class_=re.compile(r'content|main|instruction', re.I))
+            if not main_content:
+                # Try to find any div with the instruction text
+                main_content = soup.find('div', string=re.compile(r'About this grant|INSTRUCTIONS', re.I))
+                if main_content:
+                    main_content = main_content.find_parent('div')
             
-            # Extract how to apply information
-            how_to_apply_sections = soup.find_all(['div', 'section'], class_=re.compile(r'how.*apply|application.*process', re.I))
-            if how_to_apply_sections:
-                how_to_apply_text = ' '.join([s.get_text(strip=True) for s in how_to_apply_sections[:3]])
-                if how_to_apply_text:
-                    additional_data['how_to_apply'] = how_to_apply_text[:1000]
+            if not main_content:
+                main_content = soup
             
-            # Extract any additional funding details
-            funding_sections = soup.find_all(['div', 'section'], class_=re.compile(r'funding|amount|budget', re.I))
-            if funding_sections:
-                funding_text = ' '.join([s.get_text(strip=True) for s in funding_sections[:2]])
-                if funding_text:
-                    additional_data['funding_details'] = funding_text[:500]
+            # Extract "About this grant" section
+            about_section = self._extract_section_by_heading(main_content, ['About this grant', 'About'])
+            if about_section:
+                additional_data['about_grant'] = about_section
+                # Also update description if not already set
+                if 'description' not in additional_data:
+                    additional_data['description'] = about_section[:500]
+            
+            # Extract "Who Can Apply?" section
+            who_can_apply = self._extract_section_by_heading(main_content, ['Who Can Apply', 'Who can apply', 'Eligibility'])
+            if who_can_apply:
+                additional_data['eligibility_criteria'] = who_can_apply
+                additional_data['who_can_apply'] = who_can_apply
+            
+            # Extract "When to Apply?" section
+            when_to_apply = self._extract_section_by_heading(main_content, ['When to Apply', 'When to apply', 'Application Timeline'])
+            if when_to_apply:
+                additional_data['when_to_apply'] = when_to_apply
+            
+            # Extract "How much funding can you receive?" section
+            funding_info = self._extract_section_by_heading(main_content, ['How much funding', 'Funding', 'How much'])
+            if funding_info:
+                additional_data['funding_details'] = funding_info
+                additional_data['funding_info'] = funding_info
+            
+            # Extract "How to apply?" section
+            how_to_apply = self._extract_section_by_heading(main_content, ['How to apply', 'How to Apply', 'Application Process'])
+            if how_to_apply:
+                additional_data['how_to_apply'] = how_to_apply
+            
+            # Extract documents required
+            documents_section = self._extract_section_by_heading(main_content, ['Documents Required', 'Required Documents', 'DOCUMENTS REQUIRED'])
+            if documents_section:
+                additional_data['required_documents'] = documents_section
             
             return additional_data
         except Exception as e:
             print(f"Error fetching instruction page: {e}")
+            import traceback
+            traceback.print_exc()
             return {}
+    
+    def _extract_section_by_heading(self, soup, headings):
+        """
+        Extract text content following a specific heading
+        """
+        for heading_text in headings:
+            # Find heading by text (case insensitive) - can be in various tags
+            heading = None
+            
+            # Try to find as direct text node
+            for text_node in soup.find_all(string=re.compile(rf'{re.escape(heading_text)}', re.I)):
+                # Check if it's a heading or strong text
+                parent = text_node.find_parent(['h1', 'h2', 'h3', 'h4', 'h5', 'strong', 'b', 'p'])
+                if parent:
+                    heading = parent
+                    break
+            
+            # If not found, try finding by tag with text
+            if not heading:
+                for tag in ['h1', 'h2', 'h3', 'h4', 'h5', 'strong', 'b', 'p']:
+                    heading = soup.find(tag, string=re.compile(rf'{re.escape(heading_text)}', re.I))
+                    if heading:
+                        break
+            
+            if heading:
+                # Collect all following content until next heading
+                texts = []
+                current = heading
+                
+                # Get all following siblings
+                for sibling in current.next_siblings:
+                    if hasattr(sibling, 'name'):
+                        # Stop if we hit another major heading
+                        if sibling.name in ['h1', 'h2', 'h3', 'h4', 'h5']:
+                            sibling_text = sibling.get_text(strip=True)
+                            # Check if it's another section heading
+                            if any(h.lower() in sibling_text.lower() for h in ['Who Can Apply', 'When to Apply', 'How much', 'How to apply', 'Documents']):
+                                break
+                        
+                        # Get text from this element
+                        text = sibling.get_text(strip=True)
+                        if text and len(text) > 10:  # Only meaningful text
+                            # Skip if it's another heading
+                            if not any(h.lower() in text.lower() for h in ['Who Can Apply', 'When to Apply', 'How much', 'How to apply', 'Documents Required']):
+                                texts.append(text)
+                    elif isinstance(sibling, str):
+                        text = sibling.strip()
+                        if text and len(text) > 10:
+                            texts.append(text)
+                
+                # Also check parent's following siblings if heading is in a paragraph
+                if heading.name == 'p':
+                    parent = heading.find_parent(['div', 'section'])
+                    if parent:
+                        for sibling in parent.next_siblings:
+                            if hasattr(sibling, 'name'):
+                                if sibling.name in ['h1', 'h2', 'h3', 'h4', 'h5']:
+                                    break
+                                text = sibling.get_text(strip=True)
+                                if text and len(text) > 10:
+                                    texts.append(text)
+                
+                if texts:
+                    # Clean up and join
+                    cleaned_texts = []
+                    for text in texts[:15]:  # Limit to 15 paragraphs
+                        # Remove very short texts
+                        if len(text) > 20:
+                            cleaned_texts.append(text)
+                    
+                    if cleaned_texts:
+                        return '\n\n'.join(cleaned_texts)
+        
+        return None
     
     def _fetch_via_scraping(self):
         """
