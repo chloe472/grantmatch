@@ -22,7 +22,7 @@ A Django-based web application for matching organizations with grant opportuniti
 ### Installation
 
 1. **Clone the repository** (if not already done):
-   ```bash
+   ```bash 
    cd grantmatchproject
    ```
 
@@ -53,7 +53,7 @@ A Django-based web application for matching organizations with grant opportuniti
 
 6. **Load sample grants data**:
    ```bash
-   python manage.py sync_grants --sample
+   python manage.py sync_grants 
    ```
 
 7. **Run the development server**:

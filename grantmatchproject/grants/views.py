@@ -233,12 +233,21 @@ def grants_list(request):
     
     agencies = Agency.objects.all()
     
+    # Get saved grant IDs for the current user
+    saved_grant_ids = set(
+        GrantMatch.objects.filter(
+            project__user=request.user,
+            is_saved=True
+        ).values_list('grant_id', flat=True)
+    )
+    
     context = {
         'grants': grants,
         'agencies': agencies,
         'search_query': search_query,
         'agency_filter': agency_filter,
         'status_filter': status_filter,
+        'saved_grant_ids': saved_grant_ids,
     }
     
     return render(request, 'grants/grants_list.html', context)
@@ -324,18 +333,39 @@ def saved_grants(request):
 @login_required
 def toggle_save_grant(request, grant_id):
     """Toggle save status of a grant"""
+    from django.http import JsonResponse
+    
     grant = get_object_or_404(Grant, id=grant_id)
     
-    # Find or create a match (simplified - assumes user has at least one project)
+    # Check if this is an AJAX request
+    is_ajax = (
+        request.headers.get('Content-Type') == 'application/json' or 
+        request.GET.get('format') == 'json' or
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    )
+    
+    # Get or create a default project for the user if they don't have one
     project = Project.objects.filter(user=request.user).first()
-    if project:
-        match, created = GrantMatch.objects.get_or_create(
-            project=project,
-            grant=grant,
-            defaults={'match_score': grant.match_score or 0}
+    if not project:
+        # Create a default project for saving grants
+        project = Project.objects.create(
+            user=request.user,
+            title='My Saved Grants',
+            description='Default project for saved grants',
+            focus_area='General',
         )
-        match.is_saved = not match.is_saved
-        match.save()
+    
+    match, created = GrantMatch.objects.get_or_create(
+        project=project,
+        grant=grant,
+        defaults={'match_score': grant.match_score or 0}
+    )
+    match.is_saved = not match.is_saved
+    match.save()
+    
+    # Return JSON response for AJAX requests
+    if is_ajax:
+        return JsonResponse({'is_saved': match.is_saved})
     
     return redirect(request.META.get('HTTP_REFERER', '/'))
 

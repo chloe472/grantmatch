@@ -534,6 +534,40 @@ body {
     color: var(--text-dark);
 }
 
+.star-btn {
+    color: var(--text-gray);
+}
+
+.star-btn:hover {
+    color: var(--text-dark);
+}
+
+.star-btn.saved {
+    color: var(--accent-yellow);
+}
+
+.star-btn.saved:hover {
+    color: var(--accent-yellow);
+    opacity: 0.8;
+}
+
+.star-btn.saved svg path {
+    fill: var(--accent-yellow) !important;
+}
+
+.star-btn:not(.saved) svg path {
+    fill: none;
+    stroke: var(--text-gray);
+}
+
+.star-btn svg {
+    transition: all 0.2s ease;
+}
+
+.star-btn svg path {
+    transition: fill 0.2s ease;
+}
+
 /* Deadlines List */
 .deadlines-list {
     display: flex;
