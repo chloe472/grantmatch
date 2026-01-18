@@ -291,6 +291,7 @@ class SGGrantsService:
         """
         Scrape grants from OurSG Grants Portal website
         Note: This should be used responsibly and in compliance with terms of service
+        Note: The OurSG Grants Portal uses an API, so scraping is not the primary method
         """
         if BeautifulSoup is None:
             raise ImportError("beautifulsoup4 is required for web scraping. Install it with: pip install beautifulsoup4")
@@ -298,26 +299,41 @@ class SGGrantsService:
         grants_data = []
         
         try:
-            # Fetch the main grants listing page
-            response = self.session.get(f"{self.BASE_URL}/grants")
-            response.raise_for_status()
+            # Try the main page first
+            urls_to_try = [
+                f"{self.BASE_URL}",
+                f"{self.BASE_URL}/explore",
+            ]
             
-            soup = BeautifulSoup(response.content, 'html.parser')
-            
-            # Parse grant listings (adjust selectors based on actual HTML structure)
-            grant_items = soup.find_all(['div', 'article'], class_=re.compile(r'grant|card|item', re.I))
-            
-            for item in grant_items:
+            for url in urls_to_try:
                 try:
-                    grant_data = self._parse_grant_item(item)
-                    if grant_data:
-                        grants_data.append(grant_data)
+                    response = self.session.get(url, timeout=30)
+                    if response.status_code == 200:
+                        soup = BeautifulSoup(response.content, 'html.parser')
+                        
+                        # Parse grant listings (adjust selectors based on actual HTML structure)
+                        grant_items = soup.find_all(['div', 'article'], class_=re.compile(r'grant|card|item', re.I))
+                        
+                        for item in grant_items:
+                            try:
+                                grant_data = self._parse_grant_item(item)
+                                if grant_data:
+                                    grants_data.append(grant_data)
+                            except Exception as e:
+                                print(f"Error parsing grant item: {e}")
+                                continue
+                        
+                        if grants_data:
+                            break
                 except Exception as e:
-                    print(f"Error parsing grant item: {e}")
+                    print(f"Error fetching from {url}: {e}")
                     continue
                     
         except Exception as e:
-            print(f"Error fetching grants: {e}")
+            print(f"Error fetching grants via scraping: {e}")
+            # Return empty list instead of raising - API should be primary method
+        
+        return grants_data
         
         return grants_data
     
@@ -434,27 +450,26 @@ class SGGrantsService:
         # Check for range format (e.g., "$50K - $100K" or "$50,000 - $100,000")
         if '-' in funding_str or 'to' in funding_str.lower():
             numbers = re.findall(r'[\d,]+\.?\d*', funding_str.replace(',', ''))
-        if len(numbers) >= 2:
-            try:
-                min_val = Decimal(numbers[0])
-                max_val = Decimal(numbers[1])
-                # Convert to thousands if needed
-                if min_val >= 1000:
+            if len(numbers) >= 2:
+                try:
+                    min_val = Decimal(numbers[0])
+                    max_val = Decimal(numbers[1])
+                    # Convert to thousands if needed
+                    if min_val >= 1000:
                         min_val = min_val / 1000
-                if max_val >= 1000:
+                    if max_val >= 1000:
                         max_val = max_val / 1000
-                return min_val, max_val
-            except:
-                pass
-
-        elif len(numbers) == 1:
-            try:
-                val = Decimal(numbers[0])
-                if val >= 1000:
-                    val = val / 1000
-                return val, val
-            except:
-                pass
+                    return min_val, max_val
+                except:
+                    pass
+            elif len(numbers) == 1:
+                try:
+                    val = Decimal(numbers[0])
+                    if val >= 1000:
+                        val = val / 1000
+                    return val, val
+                except:
+                    pass
         
         # Try to extract any number
         numbers = re.findall(r'[\d,]+\.?\d*', funding_str.replace(',', ''))
@@ -564,54 +579,3 @@ class SGGrantsService:
             return 'upcoming'
 
 
-# Sample data for development/testing when API/scraping is not available
-SAMPLE_GRANTS_DATA = [
-    {
-        'title': 'Community Care Innovation Fund',
-        'agency_name': 'Agency for Integrated Care',
-        'acronym': 'AIC',
-        'description': 'Supports innovative community care programs for seniors, including dementia care initiatives.',
-        'funding_min': 80,
-        'funding_max': 150,
-        'closing_date': '2025-03-15',
-        'duration_years': '2-3 years',
-        'status': 'open',
-        'icon_name': 'hospital',
-    },
-    {
-        'title': 'Silver Generation Fund',
-        'agency_name': 'Ministry of Social and Family Development',
-        'acronym': 'MSF',
-        'description': 'Funding for active aging initiatives and programs that support senior well-being.',
-        'funding_min': 50,
-        'funding_max': 100,
-        'closing_date': '2025-04-30',
-        'duration_years': '1-2 years',
-        'status': 'open',
-        'icon_name': 'building',
-    },
-    {
-        'title': 'Mental Wellness Support Grant',
-        'agency_name': 'Health Promotion Board',
-        'acronym': 'HPB',
-        'description': 'Grants for mental health services and preventive care programs.',
-        'funding_min': 60,
-        'funding_max': 120,
-        'closing_date': '2025-05-20',
-        'duration_years': '2 years',
-        'status': 'open',
-        'icon_name': 'heart',
-    },
-    {
-        'title': 'Technology for Seniors Grant',
-        'agency_name': 'Infocomm Media Development Authority',
-        'acronym': 'IMDA',
-        'description': 'Funding for technology solutions that improve the lives of seniors.',
-        'funding_min': 40,
-        'funding_max': 80,
-        'closing_date': '2025-03-31',
-        'duration_years': '1-2 years',
-        'status': 'open',
-        'icon_name': 'tech',
-    },
-]
