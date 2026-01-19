@@ -616,6 +616,116 @@ def start_application(request, grant_id):
 
 
 @login_required
+def start_application_recommended(request, grant_id):
+    """Start application with recommended proposal template"""
+    grant = get_object_or_404(Grant, id=grant_id)
+    
+    # Get user's first project
+    project = Project.objects.filter(user=request.user).first()
+    
+    if not project:
+        return redirect('grants:project_create')
+    
+    # Get or create application
+    application, created = Application.objects.get_or_create(
+        user=request.user,
+        grant=grant,
+        project=project,
+        defaults={'status': 'in_progress'}
+    )
+    
+    if not created and application.status != 'in_progress':
+        application.status = 'in_progress'
+        application.save()
+    
+    # Pre-fill proposal from project data if not already filled
+    if not application.proposal_title:
+        application.proposal_title = f"Project Proposal Template - {grant.title}"
+    
+    # Pre-fill sections from project data
+    if not application.community_needs_analysis:
+        # Use project description for community needs analysis
+        if project.description:
+            application.community_needs_analysis = project.description
+        # Also use beneficiary types if available
+        if project.beneficiary_types:
+            beneficiary_text = f"This project targets: {', '.join(project.beneficiary_types)}."
+            if application.community_needs_analysis:
+                application.community_needs_analysis += "\n\n" + beneficiary_text
+            else:
+                application.community_needs_analysis = beneficiary_text
+    
+    if not application.project_objective:
+        if project.service_outcomes:
+            application.project_objective = project.service_outcomes
+        elif project.description:
+            # Extract objectives from description
+            application.project_objective = project.description
+    
+    if not application.description_of_project:
+        if project.description:
+            application.description_of_project = project.description
+        # Add timeline if available
+        if project.project_start_date and project.project_end_date:
+            timeline_text = f"\n\nProject Timeline: {project.project_start_date.strftime('%d %b %Y')} to {project.project_end_date.strftime('%d %b %Y')}"
+            application.description_of_project += timeline_text
+        if project.target_beneficiaries_count:
+            application.description_of_project += f"\n\nTarget Number of Beneficiaries: {project.target_beneficiaries_count}"
+    
+    if not application.last_saved:
+        application.last_saved = timezone.now()
+    
+    application.save()
+    
+    return redirect('grants:proposal_template', application_id=application.id)
+
+
+@login_required
+def proposal_template(request, application_id):
+    """View and edit project proposal template"""
+    application = get_object_or_404(Application, id=application_id, user=request.user)
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'save_draft':
+            application.proposal_title = request.POST.get('proposal_title', '')
+            application.community_needs_analysis = request.POST.get('community_needs_analysis', '')
+            application.project_objective = request.POST.get('project_objective', '')
+            application.project_uniqueness = request.POST.get('project_uniqueness', '')
+            application.description_of_project = request.POST.get('description_of_project', '')
+            application.project_publicity = request.POST.get('project_publicity', '')
+            application.project_considerations = request.POST.get('project_considerations', '')
+            application.project_evaluation = request.POST.get('project_evaluation', '')
+            application.last_saved = timezone.now()
+            application.save()
+            return JsonResponse({'success': True, 'message': 'Draft saved successfully', 'last_saved': application.last_saved.strftime('%d %b %Y, %I:%M %p')})
+        
+        elif action == 'submit':
+            application.proposal_title = request.POST.get('proposal_title', '')
+            application.community_needs_analysis = request.POST.get('community_needs_analysis', '')
+            application.project_objective = request.POST.get('project_objective', '')
+            application.project_uniqueness = request.POST.get('project_uniqueness', '')
+            application.description_of_project = request.POST.get('description_of_project', '')
+            application.project_publicity = request.POST.get('project_publicity', '')
+            application.project_considerations = request.POST.get('project_considerations', '')
+            application.project_evaluation = request.POST.get('project_evaluation', '')
+            application.status = 'submitted'
+            application.submitted_at = timezone.now()
+            application.last_saved = timezone.now()
+            application.save()
+            return redirect('grants:applications')
+    
+    context = {
+        'application': application,
+        'grant': application.grant,
+        'project': application.project,
+    }
+    
+    return render(request, 'grants/proposal_template.html', context)
+
+
+@login_required
 def application_create(request, grant_id):
     """Create a new application"""
     grant = get_object_or_404(Grant, id=grant_id)

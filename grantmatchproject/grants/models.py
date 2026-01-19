@@ -151,6 +151,16 @@ class Application(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     notes = models.TextField(blank=True)
+    # Proposal template fields
+    proposal_title = models.CharField(max_length=300, blank=True, help_text="Editable proposal title")
+    community_needs_analysis = models.TextField(blank=True)
+    project_objective = models.TextField(blank=True)
+    project_uniqueness = models.TextField(blank=True)
+    description_of_project = models.TextField(blank=True)
+    project_publicity = models.TextField(blank=True)
+    project_considerations = models.TextField(blank=True)
+    project_evaluation = models.TextField(blank=True)
+    last_saved = models.DateTimeField(null=True, blank=True, help_text="Last time proposal was saved")
     
     class Meta:
         ordering = ['-created_at']
