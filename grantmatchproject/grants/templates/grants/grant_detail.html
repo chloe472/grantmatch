@@ -258,6 +258,30 @@
         margin-bottom: 16px;
     }
     
+    .tab-pane-content ul, .tab-pane-content ol {
+        margin: 16px 0 16px 24px;
+        line-height: 1.8;
+    }
+    
+    .tab-pane-content li {
+        margin-bottom: 8px;
+        color: var(--text-gray);
+    }
+    
+    .eligibility-content, .when-to-apply-content, .funding-info-content, .how-to-apply-content {
+        color: var(--text-gray);
+        line-height: 1.8;
+        margin-bottom: 16px;
+    }
+    
+    .eligibility-content ul, .when-to-apply-content ul, .funding-info-content ul, .how-to-apply-content ul {
+        margin: 16px 0 16px 24px;
+    }
+    
+    .eligibility-content li, .when-to-apply-content li, .funding-info-content li, .how-to-apply-content li {
+        margin-bottom: 8px;
+    }
+    
     .focus-tags {
         display: flex;
         gap: 8px;
@@ -999,6 +1023,18 @@
                                 {{ live_data.required_documents|linebreaks }}
                             </div>
                             {% endif %}
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Apply Button -->
+                        {% if grant.application_url or live_data.application_url %}
+                        <div style="margin-top: 24px;">
+                            <a href="{{ live_data.application_url|default:grant.application_url }}" target="_blank" class="btn btn-primary" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M13 3L3 13M13 3H6M13 3V10"/>
+                                </svg>
+                                Visit OurSG Grants Portal
+                            </a>
                         </div>
                         {% endif %}
                     </div>
