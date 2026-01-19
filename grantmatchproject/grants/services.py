@@ -9,6 +9,8 @@ from decimal import Decimal
 import re
 from urllib.parse import urljoin
 from .models import Grant, Agency
+import asyncio
+from playwright.async_api import async_playwright
 
 
 class SGGrantsService:
@@ -89,6 +91,12 @@ class SGGrantsService:
             else:
                 grant_status = 'open'
             
+            # Determine closing date text
+            if grant_status == 'closed':
+                closing_date_text = "Application Closed"
+            else:
+                closing_date_text = closing_date_str or "Open for Applications"
+            
             # Build application URL
             grant_value = grant_meta.get('value', '')
             application_url = f"{self.BASE_URL}/grants/{grant_value}/instruction" if grant_value else ""
@@ -103,7 +111,7 @@ class SGGrantsService:
                 'agency_name': grant_meta.get('agency_name', 'Unknown'),
                 'agency_code': grant_meta.get('agency_code', ''),
                 'closing_date': self._parse_date(closing_date_str) if closing_date_str else None,
-                'closing_date_text': closing_date_str or "Open for Applications",
+                'closing_date_text': closing_date_text,
                 'funding_min': funding_min,
                 'funding_max': funding_max,
                 'grant_amount_text': grant_amount,
@@ -121,7 +129,7 @@ class SGGrantsService:
     def fetch_grant_detail(self, grant_value=None, external_id=None):
         """
         Fetch detailed grant information from OurSG Grants Portal
-        Can search by grant_value (e.g., 'ssgacg') or external_id
+        Uses Playwright to render JavaScript and extract real content
         """
         # First, fetch all grants to find the specific one
         all_grants = self._fetch_via_api()
@@ -139,20 +147,247 @@ class SGGrantsService:
         if not grant_detail:
             return None
         
-        # Try to fetch additional details from the instruction page
-        if grant_detail.get('application_url'):
+        # Fetch real content from the instruction page using Playwright
+        instruction_url = grant_detail.get('application_url', '')
+        if instruction_url:
             try:
-                additional_details = self._fetch_grant_instruction_page(grant_detail['application_url'])
-                grant_detail.update(additional_details)
+                page_content = self._fetch_instruction_page_with_playwright(instruction_url)
+                if page_content:
+                    grant_detail.update(page_content)
+                    return grant_detail
             except Exception as e:
-                print(f"Could not fetch additional details: {e}")
+                print(f"Could not fetch detailed content with Playwright: {e}")
+                # Fall back to basic formatting
+        
+        # Fallback: Use formatted data from API
+        grant_detail['about_grant'] = grant_detail.get('description', '')
+        grant_detail['who_can_apply'] = self._format_applicable_to(grant_detail) if grant_detail.get('applicable_to') else 'Please check the official grant page for eligibility criteria.'
+        grant_detail['when_to_apply'] = self._format_closing_dates(grant_detail.get('closing_date_text', ''))
+        grant_detail['funding_info'] = self._format_funding(grant_detail.get('funding_min'), grant_detail.get('funding_max'), grant_detail.get('grant_amount_text', ''))
+        grant_detail['how_to_apply'] = grant_detail.get('how_to_apply_html', 'Please visit the official OurSG Grants Portal for detailed application instructions.')
+        grant_detail['required_documents'] = 'Please refer to the official grant page for required supporting documents.'
+        grant_detail['document_links'] = [
+            {
+                'name': 'View Required Documents on OurSG',
+                'url': instruction_url,
+                'size': 'External Link'
+            }
+        ]
         
         return grant_detail
+    
+    def _fetch_instruction_page_with_playwright(self, instruction_url):
+        """
+        Use Playwright to fetch and parse the instruction page
+        Extracts real content from the rendered JavaScript page
+        """
+        try:
+            # Run the async function to fetch and parse
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result = loop.run_until_complete(self._async_fetch_instruction_page(instruction_url))
+            loop.close()
+            return result
+        except Exception as e:
+            print(f"Error in Playwright fetch: {e}")
+            return None
+    
+    async def _async_fetch_instruction_page(self, instruction_url):
+        """
+        Async function to fetch instruction page with Playwright
+        """
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            context = await browser.new_context()
+            page = await context.new_page()
+            
+            try:
+                await page.goto(instruction_url, wait_until="load", timeout=60000)
+                await page.wait_for_timeout(3000)  # Wait for dynamic content
+                
+                content = await page.content()
+                soup = BeautifulSoup(content, 'html.parser')
+                
+                # Extract content sections
+                extracted_data = self._extract_grant_sections(soup)
+                
+                return extracted_data
+                
+            finally:
+                await context.close()
+                await browser.close()
+    
+    def _extract_grant_sections(self, soup):
+        """
+        Extract grant sections from the rendered HTML.
+        Also parses funding amounts from the funding_info section.
+        """
+        # Get all text lines that are meaningful
+        all_text = soup.get_text()
+        lines = [line.strip() for line in all_text.split('\n') if line.strip() and len(line.strip()) > 10]
+        
+        # Join to get full text
+        full_text = '\n'.join(lines)
+        
+        # Extract funding info text
+        funding_text = self._extract_section_text(full_text, ['how much funding', 'funding amount', 'grant amount', 'up to s$'])
+        
+        # Parse funding amounts from the extracted text
+        funding_min, funding_max = self._parse_funding(funding_text) if funding_text else (None, None)
+        
+        extracted = {
+            'about_grant': self._extract_section_text(full_text, ['about this grant', 'the aim']),
+            'who_can_apply': self._extract_section_text(full_text, ['who can apply', 'eligibility', 'who is eligible']),
+            'when_to_apply': self._extract_section_text(full_text, ['when to apply', 'when can i apply', 'application is open', 'application timeline']),
+            'funding_info': funding_text,
+            'how_to_apply': self._extract_section_text(full_text, ['how to apply', 'completing the grant', 'application process']),
+            'required_documents': self._extract_section_text(full_text, ['documents required', 'required documents', 'supporting documents']),
+            'document_links': self._extract_document_links(soup),
+            'funding_min': funding_min,
+            'funding_max': funding_max
+        }
+        
+        return extracted
+    
+    def _extract_section_text(self, full_text, keywords):
+        """
+        Extract text content for a specific section using keywords.
+        Stops at the next section heading and removes duplicate header lines.
+        """
+        # All possible section headings to detect section boundaries
+        section_headings = [
+            'who can apply', 'when to apply', 'when can i apply',
+            'how much funding', 'how to apply', 'documents required', 
+            'about this grant', 'about the grant', 'apply as', 'eligibility',
+            'application timeline', 'funding amount', 'grant amount',
+            'application process', 'required documents'
+        ]
+        
+        for keyword in keywords:
+            idx = full_text.lower().find(keyword.lower())
+            if idx != -1:
+                # Get content from this keyword onwards (800 chars to find next section)
+                section_start = idx
+                section_end = min(len(full_text), idx + 800)
+                section_text = full_text[section_start:section_end]
+                
+                # Split into lines
+                lines = section_text.split('\n')
+                
+                # Build result, stopping at next section heading
+                result_lines = []
+                skipped_header = False
+                
+                for line in lines:
+                    clean_line = line.strip()
+                    
+                    # Skip empty lines and very short lines
+                    if not clean_line or len(clean_line) < 5 or 'javascript' in clean_line.lower():
+                        continue
+                    
+                    line_lower = clean_line.lower()
+                    
+                    # Skip the first line if it's just the section header
+                    if not skipped_header:
+                        # Check if line is primarily the keyword (section header)
+                        is_keyword = any(kw.lower() in line_lower for kw in keywords)
+                        
+                        # Skip lines that are short and contain the keyword (likely headers)
+                        if is_keyword and len(clean_line) < 100:
+                            skipped_header = True
+                            continue
+                        elif is_keyword:
+                            skipped_header = True
+                    
+                    # Check if this is a different section heading
+                    is_different_section = False
+                    for heading in section_headings:
+                        if heading.lower() in line_lower:
+                            # Make sure it's not our current section
+                            if not any(kw.lower() in heading.lower() for kw in keywords):
+                                is_different_section = True
+                                break
+                    
+                    # Stop at next section if we have content
+                    if is_different_section and len(result_lines) > 1:
+                        break
+                    
+                    result_lines.append(clean_line)
+                
+                # Return the result (limit to 10 lines to prevent too much content)
+                if result_lines:
+                    return '\n'.join(result_lines[:10])
+        
+        return ''
+    
+    def _extract_document_links(self, soup):
+        """
+        Extract document links from the instruction page
+        """
+        links = []
+        
+        # Find all links that might be documents
+        all_links = soup.find_all('a', href=True)
+        for link in all_links:
+            href = link.get('href', '')
+            text = link.get_text(strip=True)
+            
+            # Look for file extensions or download patterns
+            if any(ext in href.lower() for ext in ['.pdf', '.doc', '.docx', '.xlsx', '.xls', '.zip']) or 'download' in text.lower():
+                # Try to extract file size if present
+                size = ''
+                # Look for parenthetical content like (DOCX 256 KB)
+                size_match = re.search(r'\(([^)]+)\)', text)
+                if size_match:
+                    size = size_match.group(1)
+                
+                # Clean file name
+                clean_name = re.sub(r'\s*\([^)]+\)', '', text).strip()
+                
+                # Make absolute URL if relative
+                if href and not href.startswith('http'):
+                    href = urljoin(self.BASE_URL, href)
+                
+                links.append({
+                    'name': clean_name or text[:50],
+                    'url': href,
+                    'size': size
+                })
+        
+        return links
+    
+    def _format_applicable_to(self, grant_detail):
+        """Format the applicable_to field into readable text"""
+        applicable = grant_detail.get('applicable_to', [])
+        if not applicable:
+            return 'Please check the official grant page for eligibility criteria.'
+        
+        # Capitalize and join
+        formatted = ', '.join([item.capitalize() for item in applicable])
+        return f"This grant is applicable to: {formatted}. Please check the official OurSG Grants Portal for detailed eligibility criteria."
+    
+    def _format_closing_dates(self, closing_date_text):
+        """Format closing date information"""
+        if not closing_date_text or closing_date_text == "Open for Applications":
+            return "This grant is currently open for applications. Check the OurSG Grants Portal for the latest deadline information."
+        return f"Application deadline: {closing_date_text}. Please visit the OurSG Grants Portal for more details."
+    
+    def _format_funding(self, funding_min, funding_max, grant_amount_text):
+        """Format funding information"""
+        if funding_min and funding_max:
+            return f"Funding available: SGD {funding_min:,.0f}K to SGD {funding_max:,.0f}K. {grant_amount_text or 'Check the official grant page for more details.'}"
+        elif funding_max:
+            return f"Maximum funding: SGD {funding_max:,.0f}K. {grant_amount_text or 'Check the official grant page for more details.'}"
+        elif grant_amount_text:
+            return f"Funding information: {grant_amount_text}"
+        else:
+            return "Please check the OurSG Grants Portal for funding details."
     
     def _fetch_grant_instruction_page(self, instruction_url):
         """
         Fetch detailed grant information from the instruction page
-        Extracts: About, Who can apply, When to apply, Funding, How to apply
+        Note: The OurSG instruction pages are JavaScript-rendered, so direct scraping is limited
+        We'll attempt to extract what we can and fall back to API data
         """
         try:
             response = self.session.get(instruction_url, timeout=30)
@@ -161,58 +396,24 @@ class SGGrantsService:
             soup = BeautifulSoup(response.content, 'html.parser')
             additional_data = {}
             
-            # Find the main content area
-            main_content = soup.find('div', class_=re.compile(r'content|main|instruction', re.I))
-            if not main_content:
-                # Try to find any div with the instruction text
-                main_content = soup.find('div', string=re.compile(r'About this grant|INSTRUCTIONS', re.I))
-                if main_content:
-                    main_content = main_content.find_parent('div')
+            # Since the pages are JavaScript-rendered, we'll have limited content
+            # But we'll try to extract any statically available data
             
-            if not main_content:
-                main_content = soup
-            
-            # Extract "About this grant" section
-            about_section = self._extract_section_by_heading(main_content, ['About this grant', 'About'])
-            if about_section:
-                additional_data['about_grant'] = about_section
-                # Also update description if not already set
-                if 'description' not in additional_data:
-                    additional_data['description'] = about_section[:500]
-            
-            # Extract "Who Can Apply?" section
-            who_can_apply = self._extract_section_by_heading(main_content, ['Who Can Apply', 'Who can apply', 'Eligibility'])
-            if who_can_apply:
-                additional_data['eligibility_criteria'] = who_can_apply
-                additional_data['who_can_apply'] = who_can_apply
-            
-            # Extract "When to Apply?" section
-            when_to_apply = self._extract_section_by_heading(main_content, ['When to Apply', 'When to apply', 'Application Timeline'])
-            if when_to_apply:
-                additional_data['when_to_apply'] = when_to_apply
-            
-            # Extract "How much funding can you receive?" section
-            funding_info = self._extract_section_by_heading(main_content, ['How much funding', 'Funding', 'How much'])
-            if funding_info:
-                additional_data['funding_details'] = funding_info
-                additional_data['funding_info'] = funding_info
-            
-            # Extract "How to apply?" section
-            how_to_apply = self._extract_section_by_heading(main_content, ['How to apply', 'How to Apply', 'Application Process'])
-            if how_to_apply:
-                additional_data['how_to_apply'] = how_to_apply
-            
-            # Extract documents required with download links
-            documents_data = self._extract_documents_section(main_content)
-            if documents_data:
-                additional_data['required_documents'] = documents_data.get('text', '')
-                additional_data['document_links'] = documents_data.get('links', [])
+            # Look for any pre-rendered JSON data
+            scripts = soup.find_all('script', type='application/json')
+            for script in scripts:
+                try:
+                    import json
+                    data = json.loads(script.string)
+                    # Check if this contains grant information
+                    if 'about' in str(data).lower() or 'eligibility' in str(data).lower():
+                        additional_data.update(data)
+                except:
+                    pass
             
             return additional_data
         except Exception as e:
             print(f"Error fetching instruction page: {e}")
-            import traceback
-            traceback.print_exc()
             return {}
     
     def _extract_section_by_heading(self, soup, headings):
@@ -561,11 +762,28 @@ class SGGrantsService:
         
         created_count = 0
         updated_count = 0
+        skipped_count = 0
         
         for grant_data in grants_data:
+            # Skip grants with missing critical data
+            external_id = grant_data.get('external_id', '').strip()
+            if not external_id:
+                skipped_count += 1
+                continue
+            
+            title = grant_data.get('title', '').strip()
+            if not title:
+                skipped_count += 1
+                continue
+            
+            application_url = grant_data.get('application_url', '').strip()
+            if not application_url:
+                skipped_count += 1
+                continue
+            
             # Get or create agency - use agency_code if available, otherwise extract acronym
-            agency_code = grant_data.get('agency_code', '').upper()
-            agency_name = grant_data.get('agency_name', 'Unknown')
+            agency_code = grant_data.get('agency_code', '').upper().strip()
+            agency_name = grant_data.get('agency_name', 'Unknown').strip()
             
             if agency_code:
                 # Try to get by acronym first
@@ -584,31 +802,23 @@ class SGGrantsService:
                         defaults={'acronym': self._extract_acronym(agency_name)}
                     )
             
-            # Use external_id as primary identifier, fallback to title+agency
-            external_id = grant_data.get('external_id', '')
-            lookup_kwargs = {}
-            if external_id:
-                lookup_kwargs['external_id'] = external_id
-            else:
-                # Fallback: use title and agency
-                lookup_kwargs['title'] = grant_data.get('title', '')
-                lookup_kwargs['agency'] = agency
+            # Use external_id as primary identifier
+            lookup_kwargs = {'external_id': external_id}
             
             # Get or create grant
             grant, created = Grant.objects.update_or_create(
                 **lookup_kwargs,
                 defaults={
-                    'title': grant_data.get('title', ''),
+                    'title': title,
                     'agency': agency,
                     'description': grant_data.get('description', ''),
                     'funding_min': grant_data.get('funding_min'),
                     'funding_max': grant_data.get('funding_max'),
                     'closing_date': grant_data.get('closing_date'),
-                    'application_url': grant_data.get('application_url', ''),
+                    'application_url': application_url,
                     'source_url': grant_data.get('source_url', ''),
                     'status': grant_data.get('status', 'open'),
                     'icon_name': grant_data.get('icon_name', ''),
-                    'external_id': external_id,
                 }
             )
             
@@ -620,6 +830,7 @@ class SGGrantsService:
         return {
             'created': created_count,
             'updated': updated_count,
+            'skipped': skipped_count,
             'total': len(grants_data)
         }
     

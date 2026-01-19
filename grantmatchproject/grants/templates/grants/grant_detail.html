@@ -928,7 +928,9 @@
                             {% endif %}
                             <div class="timeline-item" style="margin-bottom: 12px;">
                                 <strong>Closing Date:</strong> 
-                                {% if grant.closing_date %}
+                                {% if grant.status == 'closed' %}
+                                    <span style="color: #d9534f; font-weight: bold;">Application Closed</span>
+                                {% elif grant.closing_date %}
                                     {{ grant.closing_date|date:"d M Y" }}
                                     {% if grant.days_until_deadline %}
                                         <span class="days-remaining" style="color: var(--accent-orange);">({{ grant.days_until_deadline }} days remaining)</span>
@@ -947,6 +949,7 @@
                 </div>
 
                 <!-- Funding Tab -->
+                {% if grant.funding_min or grant.funding_max %}
                 <div id="tab-funding" class="tab-pane">
                     <div class="tab-pane-content">
                         <h2>How much funding can you receive?</h2>
@@ -969,18 +972,12 @@
                         </div>
                     </div>
                 </div>
+                {% endif %}
 
                 <!-- How to Apply Tab -->
                 <div id="tab-how" class="tab-pane">
                     <div class="tab-pane-content">
                         <h2>How to apply?</h2>
-                        {% if live_data.how_to_apply %}
-                        <div class="how-to-apply-content">
-                            {{ live_data.how_to_apply|linebreaks }}
-                        </div>
-                        {% else %}
-                        <p>Please visit the official grant page for detailed application instructions.</p>
-                        {% endif %}
                         
                         <!-- Documents Required Section -->
                         {% if live_data.document_links or live_data.required_documents %}
@@ -998,7 +995,7 @@
                             <ul class="document-list">
                                 {% for doc in live_data.document_links %}
                                 <li class="document-item">
-                                    <a href="{{ doc.url }}" target="_blank" download>
+                                    <a href="{{ doc.url }}" target="_blank" {% if doc.size != 'External Link' %}download{% endif %}>
                                         <div class="document-icon">
                                             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
                                                 <path d="M4 4H16V16H4V4Z"/>
@@ -1047,6 +1044,7 @@
             <!-- Quick Facts Card -->
             <div class="quick-facts-card">
                 <h3>Quick Facts</h3>
+                {% if grant.funding_min or grant.funding_max %}
                 <div class="fact-item">
                     <svg class="fact-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M10 2L3 6V14L10 18L17 14V6L10 2Z"/>
@@ -1055,6 +1053,7 @@
                     <span class="fact-label">Funding Amount</span>
                     <span class="fact-value">{{ grant.funding_range }}</span>
                 </div>
+                {% endif %}
                 <div class="fact-item">
                     <svg class="fact-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="3" y="4" width="14" height="12" rx="1"/>

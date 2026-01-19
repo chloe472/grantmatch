@@ -27,13 +27,23 @@ class Command(BaseCommand):
         service = SGGrantsService()
         
         try:
+            # Sync grants to database
             result = service.sync_grants_to_db()
+            
+            # Report results
             self.stdout.write(
                 self.style.SUCCESS(
-                    f'Successfully synced {result["total"]} grants '
-                    f'({result["created"]} created, {result["updated"]} updated)'
+                    f'Successfully synced {result["total"]} grants: '
+                    f'{result["created"]} created, {result["updated"]} updated, {result["skipped"]} skipped'
                 )
             )
+            
+            # Remove grants with empty external_id (old invalid data)
+            old_invalid_grants = Grant.objects.filter(external_id__exact='')
+            if old_invalid_grants.exists():
+                count = old_invalid_grants.count()
+                old_invalid_grants.delete()
+                self.stdout.write(self.style.WARNING(f'Removed {count} grants with missing external IDs'))
             
             # Optionally fetch logos
             if options['fetch_logos']:
