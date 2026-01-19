@@ -553,9 +553,6 @@
         <!-- Form Actions -->
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <path d="M10 2L12.09 6.26L17 7.27L13 10.14L13.82 15.02L10 13.77L6.18 15.02L7 10.14L3 7.27L7.91 6.26L10 2Z" fill="currentColor"/>
-                </svg>
                 {% if is_edit %}Update & Recalculate Matches{% else %}Find Matching Grants{% endif %}
             </button>
             <a href="{% url 'grants:projects' %}" class="btn btn-secondary">Cancel</a>
