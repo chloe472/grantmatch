@@ -104,9 +104,12 @@
         border-radius: 8px;
         padding: 16px;
         margin-bottom: 12px;
-        cursor: move;
+        cursor: pointer;
         transition: all 0.2s;
         position: relative;
+        text-decoration: none;
+        color: inherit;
+        display: block;
     }
 
     .application-card:hover {
@@ -277,7 +280,7 @@
             </div>
             <div class="kanban-column-content" ondrop="handleDrop(event)" ondragover="handleDragOver(event)">
                 {% for application in status_groups.in_progress %}
-                <div class="application-card" draggable="true" ondragstart="handleDragStart(event)" data-application-id="{{ application.id }}">
+                <a href="{% url 'grants:grant_detail' application.grant.id %}" class="application-card" draggable="true" ondragstart="handleDragStart(event)" data-application-id="{{ application.id %}" style="text-decoration: none; color: inherit; display: block;">
                     <div class="application-card-header">
                         {% with agency_lower=application.grant.agency.acronym|lower %}
                         <div class="application-icon" style="position: relative; overflow: hidden;">
@@ -320,7 +323,7 @@
                         <div class="progress-percentage">65%</div>
                     </div>
                     <div class="application-updated">Updated {{ application.updated_at|date:"d M" }}</div>
-                </div>
+                </a>
                 {% empty %}
                 <div class="empty-column">No applications</div>
                 {% endfor %}
@@ -335,7 +338,7 @@
             </div>
             <div class="kanban-column-content" ondrop="handleDrop(event)" ondragover="handleDragOver(event)">
                 {% for application in status_groups.submitted %}
-                <div class="application-card" draggable="true" ondragstart="handleDragStart(event)" data-application-id="{{ application.id }}">
+                <a href="{% url 'grants:grant_detail' application.grant.id %}" class="application-card" draggable="true" ondragstart="handleDragStart(event)" data-application-id="{{ application.id }}" style="text-decoration: none; color: inherit; display: block;">
                     <div class="application-card-header">
                         {% with agency_lower=application.grant.agency.acronym|lower %}
                         <div class="application-icon" style="position: relative; overflow: hidden;">
@@ -378,7 +381,7 @@
                         <div class="progress-percentage">100%</div>
                     </div>
                     <div class="application-updated">Updated {{ application.updated_at|date:"d M" }}</div>
-                </div>
+                </a>
                 {% empty %}
                 <div class="empty-column">No applications</div>
                 {% endfor %}
@@ -393,7 +396,7 @@
             </div>
             <div class="kanban-column-content" ondrop="handleDrop(event)" ondragover="handleDragOver(event)">
                 {% for application in status_groups.approved %}
-                <div class="application-card" draggable="true" ondragstart="handleDragStart(event)" data-application-id="{{ application.id }}">
+                <a href="{% url 'grants:grant_detail' application.grant.id %}" class="application-card" draggable="true" ondragstart="handleDragStart(event)" data-application-id="{{ application.id }}" style="text-decoration: none; color: inherit; display: block;">
                     <div class="application-card-header">
                         {% with agency_lower=application.grant.agency.acronym|lower %}
                         <div class="application-icon" style="position: relative; overflow: hidden;">
@@ -430,7 +433,7 @@
                         {% endif %}
                     </div>
                     <div class="application-updated">Updated {{ application.updated_at|date:"d M" }}</div>
-                </div>
+                </a>
                 {% empty %}
                 <div class="empty-column">No applications</div>
                 {% endfor %}
@@ -445,7 +448,7 @@
             </div>
             <div class="kanban-column-content" ondrop="handleDrop(event)" ondragover="handleDragOver(event)">
                 {% for application in status_groups.rejected %}
-                <div class="application-card" draggable="true" ondragstart="handleDragStart(event)" data-application-id="{{ application.id }}">
+                <a href="{% url 'grants:grant_detail' application.grant.id %}" class="application-card" draggable="true" ondragstart="handleDragStart(event)" data-application-id="{{ application.id }}" style="text-decoration: none; color: inherit; display: block;">
                     <div class="application-card-header">
                         {% with agency_lower=application.grant.agency.acronym|lower %}
                         <div class="application-icon" style="position: relative; overflow: hidden;">
@@ -482,7 +485,7 @@
                         {% endif %}
                     </div>
                     <div class="application-updated">Updated {{ application.updated_at|date:"d M" }}</div>
-                </div>
+                </a>
                 {% empty %}
                 <div class="empty-column">No applications</div>
                 {% endfor %}

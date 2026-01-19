@@ -29,72 +29,107 @@
 
         <!-- Section 1: Community Needs Analysis -->
         <div class="proposal-section">
-            <h2 class="section-title">1. Community Needs Analysis</h2>
+            <div class="section-header">
+                <div class="section-icon">✓</div>
+                <h2 class="section-title">1. Community Needs Analysis</h2>
+            </div>
             <p class="section-description">Describe briefly the current social/community needs that you have identified for your project.</p>
             <textarea name="community_needs_analysis" 
                       class="section-textarea" 
                       placeholder="Enter the community needs analysis..."
-                      rows="6">{{ application.community_needs_analysis }}</textarea>
+                      rows="6"
+                      onkeyup="updateCharCount(this)">{{ application.community_needs_analysis }}</textarea>
+            <div class="char-count"><span class="char-number">{{ application.community_needs_analysis|length }}</span> characters</div>
         </div>
 
         <!-- Section 2: Project Objective -->
         <div class="proposal-section">
-            <h2 class="section-title">2. Project Objective</h2>
+            <div class="section-header">
+                <div class="section-icon">✓</div>
+                <h2 class="section-title">2. Project Objective</h2>
+            </div>
             <p class="section-description">Please detail the objective(s) of the community project. Ensure they are in line with the needs that you have identified in section 1.</p>
             <textarea name="project_objective" 
                       class="section-textarea" 
                       placeholder="Enter the project objectives..."
-                      rows="6">{{ application.project_objective }}</textarea>
+                      rows="6"
+                      onkeyup="updateCharCount(this)">{{ application.project_objective }}</textarea>
+            <div class="char-count"><span class="char-number">{{ application.project_objective|length }}</span> characters</div>
         </div>
 
         <!-- Section 3: Project Uniqueness -->
         <div class="proposal-section">
-            <h2 class="section-title">3. Project Uniqueness</h2>
+            <div class="section-header">
+                <div class="section-icon">✓</div>
+                <h2 class="section-title">3. Project Uniqueness</h2>
+            </div>
             <p class="section-description">Highlight how your project is different from other existing projects or collaborations, and/or how it can complement existing projects. Do include the strengths of your project as compared to other similar projects.</p>
             <textarea name="project_uniqueness" 
                       class="section-textarea" 
                       placeholder="Enter what makes your project unique..."
-                      rows="6">{{ application.project_uniqueness }}</textarea>
+                      rows="6"
+                      onkeyup="updateCharCount(this)">{{ application.project_uniqueness }}</textarea>
+            <div class="char-count"><span class="char-number">{{ application.project_uniqueness|length }}</span> characters</div>
         </div>
 
         <!-- Section 4: Description of Project -->
         <div class="proposal-section">
-            <h2 class="section-title">4. Description of Project</h2>
+            <div class="section-header">
+                <div class="section-icon">✓</div>
+                <h2 class="section-title">4. Description of Project</h2>
+            </div>
             <p class="section-description">Please detail how you plan to achieve your objectives mentioned in section 2. Include date, venue, activities and timeline for actual event day and outreach (i.e, number of volunteers/participants etc).</p>
             <textarea name="description_of_project" 
                       class="section-textarea" 
                       placeholder="Enter the project description..."
-                      rows="8">{{ application.description_of_project }}</textarea>
+                      rows="8"
+                      onkeyup="updateCharCount(this)">{{ application.description_of_project }}</textarea>
+            <div class="char-count"><span class="char-number">{{ application.description_of_project|length }}</span> characters</div>
         </div>
 
         <!-- Section 5: Project Publicity -->
         <div class="proposal-section">
-            <h2 class="section-title">5. Project Publicity</h2>
+            <div class="section-header">
+                <div class="section-icon">✓</div>
+                <h2 class="section-title">5. Project Publicity</h2>
+            </div>
             <p class="section-description">Please detail your project publicity including marketing channels and media plan (if applicable).</p>
             <textarea name="project_publicity" 
                       class="section-textarea" 
                       placeholder="Enter your publicity and marketing plan..."
-                      rows="6">{{ application.project_publicity }}</textarea>
+                      rows="6"
+                      onkeyup="updateCharCount(this)">{{ application.project_publicity }}</textarea>
+            <div class="char-count"><span class="char-number">{{ application.project_publicity|length }}</span> characters</div>
         </div>
 
         <!-- Section 6: Project Considerations -->
         <div class="proposal-section">
-            <h2 class="section-title">6. Project Considerations</h2>
+            <div class="section-header">
+                <div class="section-icon">✓</div>
+                <h2 class="section-title">6. Project Considerations</h2>
+            </div>
             <p class="section-description">What are the risks or challenges you might face with the project and how will you address them? Please include risk assessments as well for the activities.</p>
             <textarea name="project_considerations" 
                       class="section-textarea" 
                       placeholder="Enter risks, challenges, and mitigation strategies..."
-                      rows="6">{{ application.project_considerations }}</textarea>
+                      rows="6"
+                      onkeyup="updateCharCount(this)">{{ application.project_considerations }}</textarea>
+            <div class="char-count"><span class="char-number">{{ application.project_considerations|length }}</span> characters</div>
         </div>
 
         <!-- Section 7: Project Evaluation -->
         <div class="proposal-section">
-            <h2 class="section-title">7. Project Evaluation</h2>
+            <div class="section-header">
+                <div class="section-icon">✓</div>
+                <h2 class="section-title">7. Project Evaluation</h2>
+            </div>
             <p class="section-description">Please detail the key indicators of success for your project and how will you evaluate them.</p>
             <textarea name="project_evaluation" 
                       class="section-textarea" 
                       placeholder="Enter your evaluation metrics and success indicators..."
-                      rows="6">{{ application.project_evaluation }}</textarea>
+                      rows="6"
+                      onkeyup="updateCharCount(this)">{{ application.project_evaluation }}</textarea>
+            <div class="char-count"><span class="char-number">{{ application.project_evaluation|length }}</span> characters</div>
         </div>
 
         <!-- Form Actions -->
@@ -124,6 +159,18 @@
                     Save Draft
                 </button>
             </div>
+        </div>
+
+        <!-- Before You Submit Section -->
+        <div class="before-submit-section">
+            <h3>Before You Submit</h3>
+            <ul>
+                <li>Review all sections for accuracy and completeness</li>
+                <li>Ensure budget aligns with grant funding range ($80K - $150K)</li>
+                <li>Verify all outcomes are measurable and realistic</li>
+                <li>Prepare supporting documents as listed below</li>
+                <li><strong>Application deadline:</strong> 15 Mar 2025</li>
+            </ul>
         </div>
     </form>
 </div>
@@ -201,11 +248,32 @@
         margin-bottom: 32px;
     }
 
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 8px;
+    }
+
+    .section-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: var(--primary-blue);
+        color: white;
+        font-size: 16px;
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+
     .section-title {
         font-size: 18px;
         font-weight: 600;
         color: var(--text-dark);
-        margin: 0 0 8px 0;
+        margin: 0;
         line-height: 1.4;
     }
 
@@ -229,6 +297,7 @@
         resize: vertical;
         transition: all 0.2s;
         background: var(--bg-white);
+        margin-bottom: 8px;
     }
 
     .section-textarea:focus {
@@ -239,6 +308,17 @@
 
     .section-textarea::placeholder {
         color: var(--text-gray-light);
+    }
+
+    .char-count {
+        font-size: 12px;
+        color: var(--text-gray);
+        text-align: right;
+    }
+
+    .char-number {
+        font-weight: 600;
+        color: var(--text-dark);
     }
 
     .proposal-footer {
@@ -347,6 +427,49 @@
         to { transform: rotate(360deg); }
     }
 
+    /* Before You Submit Section */
+    .before-submit-section {
+        margin-top: 40px;
+        padding: 20px;
+        background: #FEF3C7;
+        border-left: 4px solid #F59E0B;
+        border-radius: 8px;
+    }
+
+    .before-submit-section h3 {
+        font-size: 16px;
+        font-weight: 600;
+        color: #92400E;
+        margin: 0 0 12px 0;
+    }
+
+    .before-submit-section ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .before-submit-section li {
+        font-size: 13px;
+        color: #78350F;
+        margin-bottom: 8px;
+        padding-left: 20px;
+        position: relative;
+        line-height: 1.5;
+    }
+
+    .before-submit-section li:before {
+        content: "•";
+        position: absolute;
+        left: 8px;
+        font-weight: bold;
+        color: #F59E0B;
+    }
+
+    .before-submit-section li:last-child {
+        margin-bottom: 0;
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
         .proposal-container {
@@ -387,6 +510,14 @@
 {% block extra_js %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
+function updateCharCount(textarea) {
+    const charCount = textarea.value.length;
+    const countElement = textarea.nextElementSibling;
+    if (countElement && countElement.classList.contains('char-count')) {
+        countElement.querySelector('.char-number').textContent = charCount;
+    }
+}
+
 function saveDraft() {
     const form = document.getElementById('proposalForm');
     const formData = new FormData(form);
