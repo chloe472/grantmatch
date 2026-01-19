@@ -998,7 +998,7 @@
                             <ul class="document-list">
                                 {% for doc in live_data.document_links %}
                                 <li class="document-item">
-                                    <a href="{{ doc.url }}" target="_blank" download>
+                                    <a href="{{ doc.url }}" target="_blank" {% if doc.size != 'External Link' %}download{% endif %}>
                                         <div class="document-icon">
                                             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
                                                 <path d="M4 4H16V16H4V4Z"/>
