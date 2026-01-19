@@ -1044,6 +1044,7 @@
             <!-- Quick Facts Card -->
             <div class="quick-facts-card">
                 <h3>Quick Facts</h3>
+                {% if grant.funding_min or grant.funding_max %}
                 <div class="fact-item">
                     <svg class="fact-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M10 2L3 6V14L10 18L17 14V6L10 2Z"/>
@@ -1052,6 +1053,7 @@
                     <span class="fact-label">Funding Amount</span>
                     <span class="fact-value">{{ grant.funding_range }}</span>
                 </div>
+                {% endif %}
                 <div class="fact-item">
                     <svg class="fact-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="3" y="4" width="14" height="12" rx="1"/>

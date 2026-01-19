@@ -91,6 +91,12 @@ class SGGrantsService:
             else:
                 grant_status = 'open'
             
+            # Determine closing date text
+            if grant_status == 'closed':
+                closing_date_text = "Application Closed"
+            else:
+                closing_date_text = closing_date_str or "Open for Applications"
+            
             # Build application URL
             grant_value = grant_meta.get('value', '')
             application_url = f"{self.BASE_URL}/grants/{grant_value}/instruction" if grant_value else ""
@@ -105,7 +111,7 @@ class SGGrantsService:
                 'agency_name': grant_meta.get('agency_name', 'Unknown'),
                 'agency_code': grant_meta.get('agency_code', ''),
                 'closing_date': self._parse_date(closing_date_str) if closing_date_str else None,
-                'closing_date_text': closing_date_str or "Open for Applications",
+                'closing_date_text': closing_date_text,
                 'funding_min': funding_min,
                 'funding_max': funding_max,
                 'grant_amount_text': grant_amount,
@@ -236,14 +242,24 @@ class SGGrantsService:
     
     def _extract_section_text(self, full_text, keywords):
         """
-        Extract text content for a specific section using keywords
+        Extract text content for a specific section using keywords.
+        Stops at the next section heading and removes duplicate header lines.
         """
+        # All possible section headings to detect section boundaries
+        section_headings = [
+            'who can apply', 'when to apply', 'when can i apply',
+            'how much funding', 'how to apply', 'documents required', 
+            'about this grant', 'about the grant', 'apply as', 'eligibility',
+            'application timeline', 'funding amount', 'grant amount',
+            'application process', 'required documents'
+        ]
+        
         for keyword in keywords:
             idx = full_text.lower().find(keyword.lower())
             if idx != -1:
-                # Get content from this keyword onwards (next 600 chars)
+                # Get content from this keyword onwards (800 chars to find next section)
                 section_start = idx
-                section_end = min(len(full_text), idx + 600)
+                section_end = min(len(full_text), idx + 800)
                 section_text = full_text[section_start:section_end]
                 
                 # Split into lines
@@ -251,34 +267,47 @@ class SGGrantsService:
                 
                 # Build result, stopping at next section heading
                 result_lines = []
-                seen_keyword = False
+                skipped_header = False
                 
                 for line in lines:
-                    # Stop if we detect a new section heading
-                    section_headings = ['who can apply', 'when to apply', 'how much funding', 'how to apply', 'documents required', 'about this grant', 'apply as']
-                    
                     clean_line = line.strip()
                     
-                    # Skip empty lines
+                    # Skip empty lines and very short lines
                     if not clean_line or len(clean_line) < 5 or 'javascript' in clean_line.lower():
                         continue
                     
-                    # Skip the duplicate keyword line at the start
-                    if not seen_keyword and any(kw.lower() in clean_line.lower() for kw in keywords):
-                        seen_keyword = True
-                        continue
+                    line_lower = clean_line.lower()
                     
-                    # Stop if we hit a different section heading
-                    if any(h in clean_line.lower() for h in section_headings):
-                        if not any(kw.lower() in clean_line.lower() for kw in keywords):
-                            if len(result_lines) > 2:  # Make sure we have content
+                    # Skip the first line if it's just the section header
+                    if not skipped_header:
+                        # Check if line is primarily the keyword (section header)
+                        is_keyword = any(kw.lower() in line_lower for kw in keywords)
+                        
+                        # Skip lines that are short and contain the keyword (likely headers)
+                        if is_keyword and len(clean_line) < 100:
+                            skipped_header = True
+                            continue
+                        elif is_keyword:
+                            skipped_header = True
+                    
+                    # Check if this is a different section heading
+                    is_different_section = False
+                    for heading in section_headings:
+                        if heading.lower() in line_lower:
+                            # Make sure it's not our current section
+                            if not any(kw.lower() in heading.lower() for kw in keywords):
+                                is_different_section = True
                                 break
+                    
+                    # Stop at next section if we have content
+                    if is_different_section and len(result_lines) > 1:
+                        break
                     
                     result_lines.append(clean_line)
                 
-                # Return the result
+                # Return the result (limit to 10 lines to prevent too much content)
                 if result_lines:
-                    return '\n'.join(result_lines[:12])  # Limit to 12 lines
+                    return '\n'.join(result_lines[:10])
         
         return ''
     
