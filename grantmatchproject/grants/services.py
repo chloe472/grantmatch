@@ -9,6 +9,8 @@ from decimal import Decimal
 import re
 from urllib.parse import urljoin
 from .models import Grant, Agency
+import asyncio
+from playwright.async_api import async_playwright
 
 
 class SGGrantsService:
@@ -121,14 +123,13 @@ class SGGrantsService:
     def fetch_grant_detail(self, grant_value=None, external_id=None):
         """
         Fetch detailed grant information from OurSG Grants Portal
-        Can search by grant_value (e.g., 'ssgacg') or external_id
+        Uses Playwright to render JavaScript and extract real content
         """
         # First, fetch all grants to find the specific one
         all_grants = self._fetch_via_api()
         
         # Find the specific grant
         grant_detail = None
-        grant_meta = None
         for grant in all_grants:
             if grant_value and grant.get('application_url', '').endswith(f'/{grant_value}/instruction'):
                 grant_detail = grant
@@ -140,7 +141,19 @@ class SGGrantsService:
         if not grant_detail:
             return None
         
-        # Build detailed information from available API fields
+        # Fetch real content from the instruction page using Playwright
+        instruction_url = grant_detail.get('application_url', '')
+        if instruction_url:
+            try:
+                page_content = self._fetch_instruction_page_with_playwright(instruction_url)
+                if page_content:
+                    grant_detail.update(page_content)
+                    return grant_detail
+            except Exception as e:
+                print(f"Could not fetch detailed content with Playwright: {e}")
+                # Fall back to basic formatting
+        
+        # Fallback: Use formatted data from API
         grant_detail['about_grant'] = grant_detail.get('description', '')
         grant_detail['who_can_apply'] = self._format_applicable_to(grant_detail) if grant_detail.get('applicable_to') else 'Please check the official grant page for eligibility criteria.'
         grant_detail['when_to_apply'] = self._format_closing_dates(grant_detail.get('closing_date_text', ''))
@@ -150,12 +163,147 @@ class SGGrantsService:
         grant_detail['document_links'] = [
             {
                 'name': 'View Required Documents on OurSG',
-                'url': grant_detail.get('application_url', ''),
+                'url': instruction_url,
                 'size': 'External Link'
             }
         ]
         
         return grant_detail
+    
+    def _fetch_instruction_page_with_playwright(self, instruction_url):
+        """
+        Use Playwright to fetch and parse the instruction page
+        Extracts real content from the rendered JavaScript page
+        """
+        try:
+            # Run the async function to fetch and parse
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result = loop.run_until_complete(self._async_fetch_instruction_page(instruction_url))
+            loop.close()
+            return result
+        except Exception as e:
+            print(f"Error in Playwright fetch: {e}")
+            return None
+    
+    async def _async_fetch_instruction_page(self, instruction_url):
+        """
+        Async function to fetch instruction page with Playwright
+        """
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            context = await browser.new_context()
+            page = await context.new_page()
+            
+            try:
+                await page.goto(instruction_url, wait_until="load", timeout=60000)
+                await page.wait_for_timeout(3000)  # Wait for dynamic content
+                
+                content = await page.content()
+                soup = BeautifulSoup(content, 'html.parser')
+                
+                # Extract content sections
+                extracted_data = self._extract_grant_sections(soup)
+                
+                return extracted_data
+                
+            finally:
+                await context.close()
+                await browser.close()
+    
+    def _extract_grant_sections(self, soup):
+        """
+        Extract grant sections from the rendered HTML
+        """
+        # Get all text lines that are meaningful
+        all_text = soup.get_text()
+        lines = [line.strip() for line in all_text.split('\n') if line.strip() and len(line.strip()) > 10]
+        
+        # Join to get full text
+        full_text = '\n'.join(lines)
+        
+        extracted = {
+            'about_grant': self._extract_section_text(full_text, ['about this grant', 'the aim']),
+            'who_can_apply': self._extract_section_text(full_text, ['who can apply', 'eligibility', 'who is eligible']),
+            'when_to_apply': self._extract_section_text(full_text, ['when to apply', 'when can i apply', 'application is open', 'application timeline']),
+            'funding_info': self._extract_section_text(full_text, ['how much funding', 'funding amount', 'grant amount', 'up to s$']),
+            'how_to_apply': self._extract_section_text(full_text, ['how to apply', 'completing the grant', 'application process']),
+            'required_documents': self._extract_section_text(full_text, ['documents required', 'required documents', 'supporting documents']),
+            'document_links': self._extract_document_links(soup)
+        }
+        
+        return extracted
+    
+    def _extract_section_text(self, full_text, keywords):
+        """
+        Extract text content for a specific section using keywords
+        """
+        for keyword in keywords:
+            idx = full_text.lower().find(keyword.lower())
+            if idx != -1:
+                # Get content from this keyword onwards (next 600 chars)
+                section_start = idx
+                section_end = min(len(full_text), idx + 600)
+                section_text = full_text[section_start:section_end]
+                
+                # Split into lines
+                lines = section_text.split('\n')
+                
+                # Build result, stopping at next section heading
+                result_lines = []
+                for line in lines:
+                    # Stop if we detect a new section heading
+                    section_headings = ['who can apply', 'when to apply', 'how much funding', 'how to apply', 'documents required', 'about this grant', 'apply as']
+                    if any(h in line.lower() for h in section_headings) and line.lower() != keyword.lower():
+                        if len(result_lines) > 2:  # Make sure we have content
+                            break
+                    
+                    # Add non-empty lines
+                    clean_line = line.strip()
+                    if clean_line and len(clean_line) > 5 and 'javascript' not in clean_line.lower():
+                        result_lines.append(clean_line)
+                
+                # Return the result
+                if result_lines:
+                    return '\n'.join(result_lines[:12])  # Limit to 12 lines
+        
+        return ''
+    
+    def _extract_document_links(self, soup):
+        """
+        Extract document links from the instruction page
+        """
+        links = []
+        
+        # Find all links that might be documents
+        all_links = soup.find_all('a', href=True)
+        for link in all_links:
+            href = link.get('href', '')
+            text = link.get_text(strip=True)
+            
+            # Look for file extensions or download patterns
+            if any(ext in href.lower() for ext in ['.pdf', '.doc', '.docx', '.xlsx', '.xls', '.zip']) or 'download' in text.lower():
+                # Try to extract file size if present
+                size = ''
+                # Look for parenthetical content like (DOCX 256 KB)
+                size_match = re.search(r'\(([^)]+)\)', text)
+                if size_match:
+                    size = size_match.group(1)
+                
+                # Clean file name
+                clean_name = re.sub(r'\s*\([^)]+\)', '', text).strip()
+                
+                # Make absolute URL if relative
+                if href and not href.startswith('http'):
+                    href = urljoin(self.BASE_URL, href)
+                
+                links.append({
+                    'name': clean_name or text[:50],
+                    'url': href,
+                    'size': size
+                })
+        
+        return links
     
     def _format_applicable_to(self, grant_detail):
         """Format the applicable_to field into readable text"""
