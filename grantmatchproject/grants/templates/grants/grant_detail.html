@@ -540,19 +540,26 @@
         <div class="grant-header-left">
             <div class="grant-header-logo">
                 {% with agency_lower=grant.agency.acronym|lower %}
+                <!-- Show fallback by default, hide if image loads successfully -->
+                <div class="grant-header-logo-fallback {{ agency_lower }}" style="display: flex;">
+                    {{ grant.agency.acronym|slice:":2"|upper }}
+                </div>
                 {% if grant.agency.logo_url %}
-                    <img src="{{ grant.agency.logo_url }}" alt="{{ grant.agency.acronym }}" 
-                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                    <div class="grant-header-logo-fallback {{ agency_lower }}" style="display: none;">
-                        {{ grant.agency.acronym }}
-                    </div>
+                    {% with logo_path=grant.agency.logo_url %}
+                    {% if "/static/" in logo_path or "http://" in logo_path or "https://" in logo_path %}
+                        <!-- Use URL directly -->
+                        <img src="{{ logo_path }}" alt="{{ grant.agency.acronym }}" 
+                             onload="this.previousElementSibling.style.display='none'; this.style.display='block';"
+                             onerror="this.style.display='none'; this.previousElementSibling.style.display='flex';"
+                             style="display: none;">
+                    {% endif %}
+                    {% endwith %}
                 {% else %}
+                    <!-- Try default static file paths with multiple extensions (PNG first) -->
                     <img src="{% static 'agency-logos/' %}{{ agency_lower }}.png" alt="{{ grant.agency.acronym }}"
-                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                         onload="this.previousElementSibling.style.display='none'; this.style.display='block';"
+                         onerror="tryNextFormat(this, '{{ agency_lower }}')"
                          style="display: none;">
-                    <div class="grant-header-logo-fallback {{ agency_lower }}" style="display: flex;">
-                        {{ grant.agency.acronym }}
-                    </div>
                 {% endif %}
                 {% endwith %}
             </div>
@@ -574,8 +581,8 @@
         </div>
     </div>
 
-    <!-- Match Analysis Section -->
-    {% if match_score > 0 or user_project %}
+    <!-- Match Analysis Section - Only show if there's an actual match -->
+    {% if match_score > 0 %}
     <div class="match-analysis-section">
         <div class="match-analysis-grid">
             <!-- Why This Grant Matches -->

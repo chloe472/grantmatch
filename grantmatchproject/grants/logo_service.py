@@ -30,7 +30,6 @@ class LogoFetchService:
         'MSO': 'https://www.mso.gov.sg',
         'MCCY': 'https://www.mccy.gov.sg',
         'HDB': 'https://www.hdb.gov.sg',
-        'TB': 'https://www.tb.gov.sg',
         'SportsG': 'https://www.sportsingapore.gov.sg',
         'NEA': 'https://www.nea.gov.sg',
     }

@@ -105,6 +105,29 @@
         </main>
     </div>
 
+    <script>
+        // Function to try multiple image formats for agency logos
+        function tryNextFormat(img, agencyName) {
+            const formats = ['png', 'jpg', 'jpeg', 'svg', 'gif'];
+            const currentSrc = img.src;
+            const currentFormat = currentSrc.split('.').pop();
+            
+            // Find next format to try
+            const currentIndex = formats.indexOf(currentFormat);
+            if (currentIndex < formats.length - 1) {
+                const nextFormat = formats[currentIndex + 1];
+                img.src = currentSrc.replace(/\.[^.]+$/, '.' + nextFormat);
+                img.onerror = function() { tryNextFormat(this, agencyName); };
+            } else {
+                // All formats failed, hide image and show fallback
+                img.style.display = 'none';
+                if (img.previousElementSibling) {
+                    img.previousElementSibling.style.display = 'flex';
+                }
+            }
+        }
+    </script>
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>
