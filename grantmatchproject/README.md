@@ -42,14 +42,8 @@ A Django-based web application for matching organizations with grant opportuniti
 
 4. **Configure Gemini API Key** (for AI-powered matching):
    ```bash
-   # Create .env file from example
-   cp .env.example .env
    
-   # Edit .env and add your Gemini API key
-   # GEMINI_API_KEY=your_actual_api_key_here
-   ```
-   
-   Or manually create a `.env` file in the `grantmatchproject` directory with:
+   Manually create a `.env` file in the `grantmatchproject` directory with:
    ```
    GEMINI_API_KEY=your_actual_api_key_here
    ```
