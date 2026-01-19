@@ -813,13 +813,10 @@ def start_application_recommended(request, grant_id):
     """Start application with recommended proposal template"""
     grant = get_object_or_404(Grant, id=grant_id)
     
-    # Get user's first project
+    # Get user's first project (optional - for pre-filling data)
     project = Project.objects.filter(user=request.user).first()
     
-    if not project:
-        return redirect('grants:project_create')
-    
-    # Get or create application
+    # Get or create application - project can be None
     application, created = Application.objects.get_or_create(
         user=request.user,
         grant=grant,
@@ -835,35 +832,36 @@ def start_application_recommended(request, grant_id):
     if not application.proposal_title:
         application.proposal_title = f"Project Proposal Template - {grant.title}"
     
-    # Pre-fill sections from project data
-    if not application.community_needs_analysis:
-        # Use project description for community needs analysis
-        if project.description:
-            application.community_needs_analysis = project.description
-        # Also use beneficiary types if available
-        if project.beneficiary_types:
-            beneficiary_text = f"This project targets: {', '.join(project.beneficiary_types)}."
-            if application.community_needs_analysis:
-                application.community_needs_analysis += "\n\n" + beneficiary_text
-            else:
-                application.community_needs_analysis = beneficiary_text
-    
-    if not application.project_objective:
-        if project.service_outcomes:
-            application.project_objective = project.service_outcomes
-        elif project.description:
-            # Extract objectives from description
-            application.project_objective = project.description
-    
-    if not application.description_of_project:
-        if project.description:
-            application.description_of_project = project.description
-        # Add timeline if available
-        if project.project_start_date and project.project_end_date:
-            timeline_text = f"\n\nProject Timeline: {project.project_start_date.strftime('%d %b %Y')} to {project.project_end_date.strftime('%d %b %Y')}"
-            application.description_of_project += timeline_text
-        if project.target_beneficiaries_count:
-            application.description_of_project += f"\n\nTarget Number of Beneficiaries: {project.target_beneficiaries_count}"
+    # Pre-fill sections from project data only if project exists
+    if project:
+        if not application.community_needs_analysis:
+            # Use project description for community needs analysis
+            if project.description:
+                application.community_needs_analysis = project.description
+            # Also use beneficiary types if available
+            if project.beneficiary_types:
+                beneficiary_text = f"This project targets: {', '.join(project.beneficiary_types)}."
+                if application.community_needs_analysis:
+                    application.community_needs_analysis += "\n\n" + beneficiary_text
+                else:
+                    application.community_needs_analysis = beneficiary_text
+        
+        if not application.project_objective:
+            if project.service_outcomes:
+                application.project_objective = project.service_outcomes
+            elif project.description:
+                # Extract objectives from description
+                application.project_objective = project.description
+        
+        if not application.description_of_project:
+            if project.description:
+                application.description_of_project = project.description
+            # Add timeline if available
+            if project.project_start_date and project.project_end_date:
+                timeline_text = f"\n\nProject Timeline: {project.project_start_date.strftime('%d %b %Y')} to {project.project_end_date.strftime('%d %b %Y')}"
+                application.description_of_project += timeline_text
+            if project.target_beneficiaries_count:
+                application.description_of_project += f"\n\nTarget Number of Beneficiaries: {project.target_beneficiaries_count}"
     
     if not application.last_saved:
         application.last_saved = timezone.now()
