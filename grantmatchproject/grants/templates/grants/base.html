@@ -9,6 +9,7 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+    {% csrf_token %}
     <div class="app-container">
         <!-- Sidebar -->
         <aside class="sidebar">
@@ -73,17 +74,50 @@
                     <input type="text" placeholder="Search grants, events, or applications..." class="search-input">
                 </div>
                 <div class="header-actions">
-                    <a href="#" class="notification-bell">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                            <path d="M18 8A6 6 0 0 0 6 8C6 11.09 4.5 13.5 4.5 13.5H19.5S18 11.09 18 8Z" stroke="currentColor" stroke-width="2" fill="none"/>
-                            <path d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21" stroke="currentColor" stroke-width="2"/>
-                        </svg>
-                        {% if user.is_authenticated %}
-                            {% if user.notifications.count > 0 %}
-                                <span class="notification-badge">{{ user.notifications.count }}</span>
+                    <div class="notification-dropdown">
+                        <button class="notification-bell" id="notification-bell">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <path d="M18 8A6 6 0 0 0 6 8C6 11.09 4.5 13.5 4.5 13.5H19.5S18 11.09 18 8Z" stroke="currentColor" stroke-width="2" fill="none"/>
+                                <path d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                            {% if user.is_authenticated %}
+                                {% if unread_notifications > 0 %}
+                                    <span class="notification-badge">{{ unread_notifications }}</span>
+                                {% endif %}
                             {% endif %}
-                        {% endif %}
-                    </a>
+                        </button>
+                        <div class="notification-popup" id="notification-popup">
+                            <div class="notification-header">
+                                <h4>Notifications</h4>
+                                {% if unread_notifications > 0 %}
+                                    <span class="unread-count">{{ unread_notifications }} new</span>
+                                {% endif %}
+                            </div>
+                            <div class="notification-list">
+                                {% if user.is_authenticated %}
+                                    {% for notification in recent_notifications %}
+                                        <div class="notification-item {% if not notification.is_read %}unread{% endif %}">
+                                            <div class="notification-content">
+                                                <h5>{{ notification.title }}</h5>
+                                                <p>{{ notification.message|truncatechars:80 }}</p>
+                                                <small>{{ notification.created_at|timesince }} ago</small>
+                                            </div>
+                                            {% if notification.link %}
+                                                <a href="{{ notification.link }}" class="notification-link" data-notification-id="{{ notification.id }}">View</a>
+                                            {% endif %}
+                                        </div>
+                                    {% empty %}
+                                        <div class="no-notifications">
+                                            <p>No notifications yet</p>
+                                        </div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                            <div class="notification-footer">
+                                <a href="{% url 'grants:notifications' %}" class="view-all-link">View All Notifications</a>
+                            </div>
+                        </div>
+                    </div>
                     {% if user.is_authenticated %}
                         <div class="user-avatar">
                             {% if user.profile.avatar_initials %}
@@ -126,7 +160,260 @@
                 }
             }
         }
+
+        // Notification dropdown functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const bell = document.getElementById('notification-bell');
+            const popup = document.getElementById('notification-popup');
+
+            if (bell && popup) {
+                // Toggle dropdown on bell click
+                bell.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    popup.classList.toggle('show');
+                });
+
+                // Close dropdown when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (!bell.contains(e.target) && !popup.contains(e.target)) {
+                        popup.classList.remove('show');
+                    }
+                });
+
+                // Close dropdown on escape key
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') {
+                        popup.classList.remove('show');
+                    }
+                });
+
+                // Mark notifications as read when clicked
+                document.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('notification-link')) {
+                        const notificationId = e.target.getAttribute('data-notification-id');
+                        if (notificationId) {
+                            // Mark as read via AJAX
+                            fetch(`/notifications/${notificationId}/read/`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': document.querySelector('input[name="csrfmiddlewaretoken"]').value
+                                }
+                            }).then(response => {
+                                if (response.ok) {
+                                    // Update UI
+                                    e.target.closest('.notification-item').classList.remove('unread');
+                                    // Update badge count
+                                    const badge = document.querySelector('.notification-badge');
+                                    if (badge) {
+                                        const currentCount = parseInt(badge.textContent) || 0;
+                                        if (currentCount > 1) {
+                                            badge.textContent = currentCount - 1;
+                                        } else {
+                                            badge.style.display = 'none';
+                                        }
+                                    }
+                                }
+                            }).catch(error => {
+                                console.error('Error marking notification as read:', error);
+                            });
+                        }
+                    }
+                });
+            }
+        });
     </script>
+
+    <style>
+        /* Notification Dropdown Styles */
+        .notification-dropdown {
+            position: relative;
+        }
+
+        .notification-bell {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 6px;
+            position: relative;
+            transition: background-color 0.2s ease;
+        }
+
+        .notification-bell:hover {
+            background-color: rgba(0, 123, 255, 0.1);
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: #dc3545;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 11px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1;
+        }
+
+        .notification-popup {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            width: 380px;
+            max-height: 500px;
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s ease;
+            overflow: hidden;
+        }
+
+        .notification-popup.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .notification-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .notification-header h4 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .unread-count {
+            font-size: 12px;
+            color: #007bff;
+            font-weight: 500;
+        }
+
+        .notification-list {
+            max-height: 350px;
+            overflow-y: auto;
+        }
+
+        .notification-item {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            transition: background-color 0.2s ease;
+        }
+
+        .notification-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .notification-item.unread {
+            background-color: #f0f8ff;
+            border-left: 3px solid #007bff;
+        }
+
+        .notification-item:last-child {
+            border-bottom: none;
+        }
+
+        .notification-content {
+            flex: 1;
+            margin-right: 12px;
+        }
+
+        .notification-content h5 {
+            margin: 0 0 4px 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: #2c3e50;
+            line-height: 1.3;
+        }
+
+        .notification-content p {
+            margin: 0 0 4px 0;
+            font-size: 13px;
+            color: #6c757d;
+            line-height: 1.4;
+        }
+
+        .notification-content small {
+            font-size: 11px;
+            color: #adb5bd;
+        }
+
+        .notification-link {
+            color: #007bff;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 4px 8px;
+            border: 1px solid #007bff;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .notification-link:hover {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .no-notifications {
+            padding: 40px 20px;
+            text-align: center;
+            color: #6c757d;
+        }
+
+        .no-notifications p {
+            margin: 0;
+            font-size: 14px;
+        }
+
+        .notification-footer {
+            padding: 12px 20px;
+            border-top: 1px solid #e9ecef;
+            background-color: #f8f9fa;
+            text-align: center;
+        }
+
+        .view-all-link {
+            color: #007bff;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .view-all-link:hover {
+            color: #0056b3;
+            text-decoration: underline;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 480px) {
+            .notification-popup {
+                width: 320px;
+                right: -20px;
+            }
+        }
+    </style>
 
     {% block extra_js %}{% endblock %}
 </body>
