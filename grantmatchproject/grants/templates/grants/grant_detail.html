@@ -522,6 +522,138 @@
             grid-template-columns: 1fr;
         }
     }
+
+    /* Modal Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background: var(--bg-white);
+        border-radius: 12px;
+        width: 90%;
+        max-width: 600px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: var(--shadow-lg);
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 24px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .modal-header h2 {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin: 0;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 28px;
+        color: var(--text-gray);
+        cursor: pointer;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+
+    .modal-close:hover {
+        background: var(--bg-gray-light);
+        color: var(--text-dark);
+    }
+
+    .modal-body {
+        padding: 24px;
+    }
+
+    .modal-subtitle {
+        color: var(--text-gray);
+        margin-bottom: 24px;
+        font-size: 14px;
+    }
+
+    .application-options {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .application-option {
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        padding: 20px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        gap: 16px;
+        align-items: flex-start;
+    }
+
+    .application-option:hover {
+        border-color: var(--primary-blue);
+        background: var(--bg-gray-light);
+    }
+
+    .application-option.selected {
+        border-color: var(--primary-blue);
+        background: #EFF6FF;
+    }
+
+    .option-icon {
+        color: var(--primary-blue);
+        flex-shrink: 0;
+    }
+
+    .option-content {
+        flex: 1;
+    }
+
+    .option-content h3 {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin-bottom: 8px;
+    }
+
+    .option-content p {
+        font-size: 14px;
+        color: var(--text-gray);
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    .modal-footer {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        padding: 24px;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .modal-footer .btn {
+        min-width: 120px;
+    }
 </style>
 {% endblock %}
 
@@ -936,7 +1068,7 @@
       {# 1) Recommended Proposal – internal AI editor #}
       <a
         class="modal-option modal-option--primary"
-        href="{% url 'grants:project_proposal_template' grant.id %}"
+        href="{% url 'grants:start_application' grant.id %}"
       >
         <div class="modal-icon">📄</div>
         <div>
@@ -1092,141 +1224,6 @@
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_css %}
-<style>
-    .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-    }
-
-    .modal-content {
-        background: var(--bg-white);
-        border-radius: 12px;
-        width: 90%;
-        max-width: 600px;
-        max-height: 90vh;
-        overflow-y: auto;
-        box-shadow: var(--shadow-lg);
-    }
-
-    .modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 24px;
-        border-bottom: 1px solid var(--border-color);
-    }
-
-    .modal-header h2 {
-        font-size: 24px;
-        font-weight: 600;
-        color: var(--text-dark);
-        margin: 0;
-    }
-
-    .modal-close {
-        background: none;
-        border: none;
-        font-size: 28px;
-        color: var(--text-gray);
-        cursor: pointer;
-        padding: 0;
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 6px;
-        transition: all 0.2s;
-    }
-
-    .modal-close:hover {
-        background: var(--bg-gray-light);
-        color: var(--text-dark);
-    }
-
-    .modal-body {
-        padding: 24px;
-    }
-
-    .modal-subtitle {
-        color: var(--text-gray);
-        margin-bottom: 24px;
-        font-size: 14px;
-    }
-
-    .application-options {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-    }
-
-    .application-option {
-        border: 2px solid var(--border-color);
-        border-radius: 8px;
-        padding: 20px;
-        cursor: pointer;
-        transition: all 0.2s;
-        display: flex;
-        gap: 16px;
-        align-items: flex-start;
-    }
-
-    .application-option:hover {
-        border-color: var(--primary-blue);
-        background: var(--bg-gray-light);
-    }
-
-    .application-option.selected {
-        border-color: var(--primary-blue);
-        background: #EFF6FF;
-    }
-
-    .option-icon {
-        color: var(--primary-blue);
-        flex-shrink: 0;
-    }
-
-    .option-content {
-        flex: 1;
-    }
-
-    .option-content h3 {
-        font-size: 18px;
-        font-weight: 600;
-        color: var(--text-dark);
-        margin-bottom: 8px;
-    }
-
-    .option-content p {
-        font-size: 14px;
-        color: var(--text-gray);
-        margin: 0;
-        line-height: 1.5;
-    }
-
-    .modal-footer {
-        display: flex;
-        gap: 12px;
-        justify-content: flex-end;
-        padding: 24px;
-        border-top: 1px solid var(--border-color);
-    }
-
-    .modal-footer .btn {
-        min-width: 120px;
-    }
-</style>
 {% endblock %}
 
 {% block extra_js %}
