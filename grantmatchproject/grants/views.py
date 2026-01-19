@@ -10,6 +10,8 @@ import json
 from .models import Grant, Project, GrantMatch, Application, Notification, Agency, UserProfile
 from django.contrib.auth.models import User
 from .services import SGGrantsService
+from .gemini_service import GeminiMatchingService
+from django.conf import settings
 
 
 def register(request):
@@ -170,54 +172,119 @@ def project_create(request):
 
 
 def calculate_matches_for_project(project):
-    """Calculate grant matches for a project using AI matching logic"""
-    grants = Grant.objects.filter(status='open')
+    """Calculate grant matches for a project using Gemini AI matching"""
+    grants = Grant.objects.filter(status='open').select_related('agency')
+    
+    # Initialize Gemini service if API key is available
+    use_gemini = bool(getattr(settings, 'GEMINI_API_KEY', ''))
+    gemini_service = None
+    
+    if use_gemini:
+        try:
+            gemini_service = GeminiMatchingService()
+            print(f"Using Gemini AI for matching project: {project.title}")
+        except Exception as e:
+            print(f"Failed to initialize Gemini service: {e}")
+            print("Falling back to simple matching logic")
+            use_gemini = False
+    
+    # Prepare project data
+    project_data = {
+        'title': project.title,
+        'description': project.description,
+        'focus_area': project.focus_area,
+        'budget_required_min': float(project.budget_required_min) if project.budget_required_min else None,
+        'budget_required_max': float(project.budget_required_max) if project.budget_required_max else None,
+        'duration_years': project.duration_years,
+        'kpis': project.kpis,
+        'service_outcomes': project.service_outcomes,
+        'beneficiary_types': project.beneficiary_types or [],
+        'interested_in': project.interested_in or [],
+        'need_support_for': project.need_support_for or [],
+        'want_support_from': project.want_support_from or [],
+    }
+    
+    matches_created = 0
+    matches_updated = 0
     
     for grant in grants:
-        score = 0
-        reasons = []
-        
-        # Simple matching logic (replace with actual AI in production)
-        if project.focus_area.lower() in grant.description.lower():
-            score += 30
-            reasons.append(f"Perfect alignment with {project.focus_area} programs")
-        
-        if project.budget_required_min and grant.funding_min:
-            if grant.funding_min <= project.budget_required_max and grant.funding_max >= project.budget_required_min:
-                score += 25
-                reasons.append("Budget range matches your requirements")
-        
-        if project.kpis and grant.description:
-            score += 20
-            reasons.append("KPIs align with your service outcomes")
-        
-        if project.duration_years and grant.duration_years:
-            score += 15
-            reasons.append("Timeline aligns with project scope")
-        
-        # Add some base score for open grants
-        score += 10
-        
-        if score >= 70:  # Only create matches with 70%+ score
-            GrantMatch.objects.update_or_create(
-                project=project,
-                grant=grant,
-                defaults={
-                    'match_score': min(score, 100),
-                    'match_reasons': reasons[:3]  # Top 3 reasons
+        try:
+            if use_gemini and gemini_service:
+                # Use Gemini AI for intelligent matching
+                grant_data = {
+                    'title': grant.title,
+                    'description': grant.description,
+                    'agency_name': grant.agency.name,
+                    'agency_acronym': grant.agency.acronym,
+                    'funding_min': float(grant.funding_min) if grant.funding_min else None,
+                    'funding_max': float(grant.funding_max) if grant.funding_max else None,
+                    'duration_years': grant.duration_years,
+                    'eligibility_criteria': grant.eligibility_criteria,
+                    'closing_date': str(grant.closing_date) if grant.closing_date else None,
                 }
-            )
+                
+                score, reasons = gemini_service.match_project_to_grant(project_data, grant_data)
+                
+            else:
+                # Fallback to simple matching logic
+                score = 0
+                reasons = []
+                
+                if project.focus_area and project.focus_area.lower() in grant.description.lower():
+                    score += 30
+                    reasons.append(f"Perfect alignment with {project.focus_area} programs")
+                
+                if project.budget_required_min and grant.funding_min:
+                    if grant.funding_min <= project.budget_required_max and grant.funding_max >= project.budget_required_min:
+                        score += 25
+                        reasons.append("Budget range matches your requirements")
+                
+                if project.kpis and grant.description:
+                    score += 20
+                    reasons.append("KPIs align with your service outcomes")
+                
+                if project.duration_years and grant.duration_years:
+                    score += 15
+                    reasons.append("Timeline aligns with project scope")
+                
+                # Add some base score for open grants
+                score += 10
+            
+            # Only create matches with 70%+ score
+            if score >= 70:
+                match, created = GrantMatch.objects.update_or_create(
+                    project=project,
+                    grant=grant,
+                    defaults={
+                        'match_score': min(score, 100),
+                        'match_reasons': reasons[:3] if reasons else ["Match found"]
+                    }
+                )
+                
+                if created:
+                    matches_created += 1
+                else:
+                    matches_updated += 1
+                    
+        except Exception as e:
+            print(f"Error matching grant {grant.id} ({grant.title}): {e}")
+            continue
+    
+    print(f"Matching complete: {matches_created} new matches, {matches_updated} updated matches")
+    return matches_created + matches_updated
 
 
 @login_required
 def grants_list(request):
-    """Browse all grants"""
+    """Browse all grants with enhanced filtering"""
     grants = Grant.objects.select_related('agency').all()
     
     # Filtering
     search_query = request.GET.get('search', '')
-    agency_filter = request.GET.get('agency', '')
+    agency_filter = request.GET.getlist('agency', [])  # Multiple agencies
     status_filter = request.GET.get('status', '')
+    match_score_filter = request.GET.get('match_score', '')
+    deadline_filter = request.GET.get('deadline', '')
     
     if search_query:
         grants = grants.filter(
@@ -227,19 +294,83 @@ def grants_list(request):
         )
     
     if agency_filter:
-        grants = grants.filter(agency__acronym=agency_filter)
+        grants = grants.filter(agency__acronym__in=agency_filter)
     
     if status_filter:
         grants = grants.filter(status=status_filter)
     
-    agencies = Agency.objects.all()
+    # Match score filtering
+    if match_score_filter:
+        if match_score_filter == '90+':
+            grants = grants.filter(match_score__gte=90)
+        elif match_score_filter == '80-89':
+            grants = grants.filter(match_score__gte=80, match_score__lt=90)
+        elif match_score_filter == '70-79':
+            grants = grants.filter(match_score__gte=70, match_score__lt=80)
+        elif match_score_filter == 'below-70':
+            grants = grants.filter(match_score__lt=70)
+    
+    # Deadline filtering
+    if deadline_filter:
+        today = timezone.now().date()
+        if deadline_filter == 'next-30':
+            grants = grants.filter(
+                closing_date__gte=today,
+                closing_date__lte=today + timedelta(days=30)
+            )
+        elif deadline_filter == '30-60':
+            grants = grants.filter(
+                closing_date__gte=today + timedelta(days=30),
+                closing_date__lte=today + timedelta(days=60)
+            )
+        elif deadline_filter == '60-90':
+            grants = grants.filter(
+                closing_date__gte=today + timedelta(days=60),
+                closing_date__lte=today + timedelta(days=90)
+            )
+        elif deadline_filter == '90+':
+            grants = grants.filter(closing_date__gte=today + timedelta(days=90))
+    
+    # Get user's saved grants and match data
+    user_saved_grant_ids = set()
+    user_grant_matches = {}
+    if request.user.is_authenticated:
+        user_project = Project.objects.filter(user=request.user).first()
+        if user_project:
+            matches = GrantMatch.objects.filter(
+                project=user_project
+            ).select_related('grant')
+            
+            user_saved_grant_ids = set(
+                matches.filter(is_saved=True).values_list('grant_id', flat=True)
+            )
+            
+            # Create a dict mapping grant_id to match object
+            for match in matches:
+                user_grant_matches[match.grant_id] = match
+    
+    # Annotate grants with saved status and match reasons
+    grants_list = list(grants.order_by('-match_score', '-closing_date'))
+    
+    # Add match reasons to each grant
+    for grant in grants_list:
+        if grant.id in user_grant_matches:
+            match = user_grant_matches[grant.id]
+            grant.user_match_reasons = match.match_reasons[:3] if match.match_reasons else []
+        else:
+            grant.user_match_reasons = []
+    
+    agencies = Agency.objects.all().order_by('acronym')
     
     context = {
-        'grants': grants,
+        'grants': grants_list,
         'agencies': agencies,
         'search_query': search_query,
         'agency_filter': agency_filter,
         'status_filter': status_filter,
+        'match_score_filter': match_score_filter,
+        'deadline_filter': deadline_filter,
+        'user_saved_grant_ids': user_saved_grant_ids,
     }
     
     return render(request, 'grants/grants_list.html', context)
@@ -247,7 +378,7 @@ def grants_list(request):
 
 @login_required
 def grant_detail(request, grant_id):
-    """View grant details - fetches live data from OurSG Grants Portal"""
+    """View grant details - fetches live data from OurSG Grants Portal and generates AI analysis"""
     # Get grant from database first (for basic info and relationships)
     grant = get_object_or_404(Grant, id=grant_id)
     
@@ -272,6 +403,9 @@ def grant_detail(request, grant_id):
             print(f"Error fetching live grant data: {e}")
             # Fallback to database data
     
+    # Get user's project for AI analysis
+    user_project = Project.objects.filter(user=request.user).first()
+    
     # Get user matches for this grant
     user_matches = GrantMatch.objects.filter(
         grant=grant,
@@ -287,21 +421,97 @@ def grant_detail(request, grant_id):
         match_score = match.match_score
         match_reasons = match.match_reasons or []
     
+    # Generate AI-powered match analysis using Gemini
+    positive_reasons = match_reasons[:4] if match_reasons else []
+    negative_reasons = []
+    
+    if user_project:
+        try:
+            from .gemini_service import GeminiMatchingService
+            gemini_service = GeminiMatchingService()
+            
+            # Prepare project data
+            project_data = {
+                'title': user_project.title,
+                'description': user_project.description,
+                'focus_area': user_project.focus_area,
+                'budget_required_min': float(user_project.budget_required_min) if user_project.budget_required_min else None,
+                'budget_required_max': float(user_project.budget_required_max) if user_project.budget_required_max else None,
+                'duration_years': user_project.duration_years,
+                'kpis': user_project.kpis,
+                'service_outcomes': user_project.service_outcomes,
+                'beneficiary_types': user_project.beneficiary_types or [],
+                'interested_in': user_project.interested_in or [],
+            }
+            
+            # Prepare grant data
+            grant_data = {
+                'title': live_grant_data.get('title', grant.title) if live_grant_data else grant.title,
+                'description': live_grant_data.get('description', grant.description) if live_grant_data else grant.description,
+                'agency_name': grant.agency.name,
+                'agency_acronym': grant.agency.acronym,
+                'funding_min': float(grant.funding_min) if grant.funding_min else None,
+                'funding_max': float(grant.funding_max) if grant.funding_max else None,
+                'duration_years': grant.duration_years,
+                'eligibility_criteria': live_grant_data.get('eligibility_criteria', grant.eligibility_criteria) if live_grant_data else grant.eligibility_criteria,
+                'closing_date': str(grant.closing_date) if grant.closing_date else None,
+            }
+            
+            # Generate AI analysis
+            ai_positive, ai_negative = gemini_service.analyze_grant_match(project_data, grant_data)
+            positive_reasons = ai_positive if ai_positive else positive_reasons
+            negative_reasons = ai_negative
+            
+        except Exception as e:
+            print(f"Error generating AI analysis: {e}")
+            # Use existing match reasons as fallback
+    
     # Check if user has an existing application for this grant
     existing_application = Application.objects.filter(
         user=request.user,
         grant=grant
     ).first()
     
-    # Get similar grants (from same agency or similar focus)
-    similar_grants = Grant.objects.filter(
-        agency=grant.agency
-    ).exclude(id=grant.id)[:3]
+    # Get similar grants (same focus area or same agency, with match scores)
+    similar_grants = []
+    if user_project:
+        # Get grants with similar focus areas
+        similar_grants = Grant.objects.filter(
+            status='open'
+        ).exclude(id=grant.id)
+        
+        # Try to match by focus area first
+        if user_project.focus_area:
+            similar_grants = similar_grants.filter(
+                description__icontains=user_project.focus_area
+            )[:3]
+        
+        # If not enough, get from same agency
+        if len(similar_grants) < 3:
+            agency_grants = Grant.objects.filter(
+                agency=grant.agency,
+                status='open'
+            ).exclude(id=grant.id)[:3]
+            similar_grants = list(similar_grants) + list(agency_grants)
+            similar_grants = similar_grants[:3]
+    else:
+        # Fallback: same agency
+        similar_grants = Grant.objects.filter(
+            agency=grant.agency,
+            status='open'
+        ).exclude(id=grant.id)[:3]
     
-    # Calculate match reasons for display
-    positive_reasons = match_reasons[:4] if match_reasons else []
-    # Generate some negative reasons if needed (this would come from AI matching logic)
-    negative_reasons = []
+    # Add match scores to similar grants if user has projects
+    if user_project:
+        for similar_grant in similar_grants:
+            similar_match = GrantMatch.objects.filter(
+                project=user_project,
+                grant=similar_grant
+            ).first()
+            if similar_match:
+                similar_grant.user_match_score = similar_match.match_score
+            else:
+                similar_grant.user_match_score = 0
     
     context = {
         'grant': grant,
@@ -313,6 +523,7 @@ def grant_detail(request, grant_id):
         'negative_reasons': negative_reasons,
         'similar_grants': similar_grants,
         'existing_application': existing_application,
+        'user_project': user_project,
     }
     
     return render(request, 'grants/grant_detail.html', context)

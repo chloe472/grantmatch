@@ -29,6 +29,15 @@
                     </svg>
                     <span>My Projects</span>
                 </a>
+                <a href="{% url 'grants:grants_list' %}" class="nav-item {% if request.resolver_match.url_name == 'grants_list' %}active{% endif %}">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <rect x="2" y="2" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <rect x="11" y="2" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <rect x="2" y="11" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <rect x="11" y="11" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" fill="none"/>
+                    </svg>
+                    <span>Browse All Grants</span>
+                </a>
                 <a href="{% url 'grants:saved_grants' %}" class="nav-item {% if request.resolver_match.url_name == 'saved_grants' %}active{% endif %}">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                         <path d="M10 15L5 10L6.5 8.5L10 12L13.5 8.5L15 10L10 15Z" fill="currentColor"/>
