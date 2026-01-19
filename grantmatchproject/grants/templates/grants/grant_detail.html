@@ -928,7 +928,9 @@
                             {% endif %}
                             <div class="timeline-item" style="margin-bottom: 12px;">
                                 <strong>Closing Date:</strong> 
-                                {% if grant.closing_date %}
+                                {% if grant.status == 'closed' %}
+                                    <span style="color: #d9534f; font-weight: bold;">Application Closed</span>
+                                {% elif grant.closing_date %}
                                     {{ grant.closing_date|date:"d M Y" }}
                                     {% if grant.days_until_deadline %}
                                         <span class="days-remaining" style="color: var(--accent-orange);">({{ grant.days_until_deadline }} days remaining)</span>
@@ -947,6 +949,7 @@
                 </div>
 
                 <!-- Funding Tab -->
+                {% if grant.funding_min or grant.funding_max %}
                 <div id="tab-funding" class="tab-pane">
                     <div class="tab-pane-content">
                         <h2>How much funding can you receive?</h2>
@@ -969,18 +972,12 @@
                         </div>
                     </div>
                 </div>
+                {% endif %}
 
                 <!-- How to Apply Tab -->
                 <div id="tab-how" class="tab-pane">
                     <div class="tab-pane-content">
                         <h2>How to apply?</h2>
-                        {% if live_data.how_to_apply %}
-                        <div class="how-to-apply-content">
-                            {{ live_data.how_to_apply|linebreaks }}
-                        </div>
-                        {% else %}
-                        <p>Please visit the official grant page for detailed application instructions.</p>
-                        {% endif %}
                         
                         <!-- Documents Required Section -->
                         {% if live_data.document_links or live_data.required_documents %}

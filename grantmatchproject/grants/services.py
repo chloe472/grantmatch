@@ -251,17 +251,30 @@ class SGGrantsService:
                 
                 # Build result, stopping at next section heading
                 result_lines = []
+                seen_keyword = False
+                
                 for line in lines:
                     # Stop if we detect a new section heading
                     section_headings = ['who can apply', 'when to apply', 'how much funding', 'how to apply', 'documents required', 'about this grant', 'apply as']
-                    if any(h in line.lower() for h in section_headings) and line.lower() != keyword.lower():
-                        if len(result_lines) > 2:  # Make sure we have content
-                            break
                     
-                    # Add non-empty lines
                     clean_line = line.strip()
-                    if clean_line and len(clean_line) > 5 and 'javascript' not in clean_line.lower():
-                        result_lines.append(clean_line)
+                    
+                    # Skip empty lines
+                    if not clean_line or len(clean_line) < 5 or 'javascript' in clean_line.lower():
+                        continue
+                    
+                    # Skip the duplicate keyword line at the start
+                    if not seen_keyword and any(kw.lower() in clean_line.lower() for kw in keywords):
+                        seen_keyword = True
+                        continue
+                    
+                    # Stop if we hit a different section heading
+                    if any(h in clean_line.lower() for h in section_headings):
+                        if not any(kw.lower() in clean_line.lower() for kw in keywords):
+                            if len(result_lines) > 2:  # Make sure we have content
+                                break
+                    
+                    result_lines.append(clean_line)
                 
                 # Return the result
                 if result_lines:
