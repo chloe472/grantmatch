@@ -567,17 +567,28 @@
 {% block extra_js %}
 <script>
     // Double-sided slider functionality
-    (function() {
+    document.addEventListener('DOMContentLoaded', function() {
         const minInput = document.getElementById('minAmountInput');
         const maxInput = document.getElementById('maxAmountInput');
         const minHandle = document.getElementById('minHandle');
         const maxHandle = document.getElementById('maxHandle');
         const sliderTrack = document.getElementById('sliderTrack');
+        const sliderWrapper = sliderTrack ? sliderTrack.parentElement : null;
         const minDisplay = document.getElementById('minAmountDisplay');
         const maxDisplay = document.getElementById('maxAmountDisplay');
         
+        // Check if all required elements exist
+        if (!minInput || !maxInput || !minHandle || !maxHandle || !sliderTrack || !sliderWrapper || !minDisplay || !maxDisplay) {
+            console.error('Funding slider: Required elements not found');
+            return;
+        }
+        
         const minValue = 1000;
         const maxValue = 1000000;
+        
+        // Track if user is actively editing to prevent interference
+        let isEditingMin = false;
+        let isEditingMax = false;
         
         function updateSlider() {
             const min = Math.max(minValue, Math.min(maxValue, parseFloat(minInput.value) || minValue));
@@ -616,7 +627,9 @@
         
         function updateFromHandle(handle, isMin) {
             return function(e) {
-                const rect = sliderTrack.parentElement.getBoundingClientRect();
+                if (!sliderWrapper) return;
+                
+                const rect = sliderWrapper.getBoundingClientRect();
                 const x = e.clientX - rect.left;
                 let percent = (x / rect.width) * 100;
                 percent = Math.max(0, Math.min(100, percent));
@@ -642,28 +655,162 @@
             };
         }
         
-        minInput.addEventListener('input', function() {
-            let min = parseFloat(minInput.value) || minValue;
-            const max = parseFloat(maxInput.value) || maxValue;
+        function updateSliderFromInputs() {
+            // Only update slider visual, NEVER modify input values
+            // This function is called during typing, so it must not interfere
+            const minInputVal = minInput.value;
+            const maxInputVal = maxInput.value;
             
-            if (min < minValue) min = minValue;
-            if (min > maxValue) min = maxValue;
-            if (min >= max) min = Math.max(minValue, max - 1000);
+            // Parse values, but use defaults only for display purposes
+            let min = parseFloat(minInputVal);
+            let max = parseFloat(maxInputVal);
             
-            minInput.value = min;
+            // If empty or invalid, use defaults for slider position only
+            if (isNaN(min) || minInputVal === '') {
+                min = minValue;
+            } else {
+                min = Math.max(minValue, Math.min(maxValue, min));
+            }
+            
+            if (isNaN(max) || maxInputVal === '') {
+                max = maxValue;
+            } else {
+                max = Math.max(minValue, Math.min(maxValue, max));
+            }
+            
+            // Ensure min <= max for display
+            if (min > max) {
+                if (document.activeElement === minInput) {
+                    min = max;
+                } else {
+                    max = min;
+                }
+            }
+            
+            // Update slider visual only - NEVER touch input.value
+            const minPercent = ((min - minValue) / (maxValue - minValue)) * 100;
+            const maxPercent = ((max - minValue) / (maxValue - minValue)) * 100;
+            
+            minHandle.style.left = minPercent + '%';
+            maxHandle.style.left = maxPercent + '%';
+            
+            sliderTrack.style.left = minPercent + '%';
+            sliderTrack.style.width = (maxPercent - minPercent) + '%';
+            
+            // Update display labels only if we have valid numeric values
+            if (minInputVal !== '' && !isNaN(parseFloat(minInputVal))) {
+                minDisplay.textContent = Math.round(min).toLocaleString();
+            }
+            if (maxInputVal !== '' && !isNaN(parseFloat(maxInputVal))) {
+                maxDisplay.textContent = Math.round(max).toLocaleString();
+            }
+        }
+        
+        function validateAndSetMin() {
+            const inputValue = minInput.value.trim();
+            let min;
+            
+            if (inputValue === '' || isNaN(parseFloat(inputValue))) {
+                min = minValue;
+                minInput.value = min;
+            } else {
+                min = parseFloat(inputValue);
+                const max = parseFloat(maxInput.value) || maxValue;
+                
+                if (min < minValue) min = minValue;
+                if (min > maxValue) min = maxValue;
+                if (min >= max) min = Math.max(minValue, max - 1000);
+                
+                minInput.value = min;
+            }
+            
             updateSlider();
+        }
+        
+        function validateAndSetMax() {
+            const inputValue = maxInput.value.trim();
+            let max;
+            
+            if (inputValue === '' || isNaN(parseFloat(inputValue))) {
+                max = maxValue;
+                maxInput.value = max;
+            } else {
+                max = parseFloat(inputValue);
+                const min = parseFloat(minInput.value) || minValue;
+                
+                if (max < minValue) max = minValue;
+                if (max > maxValue) max = maxValue;
+                if (max <= min) max = Math.min(maxValue, min + 1000);
+                
+                maxInput.value = max;
+            }
+            
+            updateSlider();
+        }
+        
+        // Track when user starts editing
+        minInput.addEventListener('focus', function() {
+            isEditingMin = true;
         });
         
-        maxInput.addEventListener('input', function() {
-            const min = parseFloat(minInput.value) || minValue;
-            let max = parseFloat(maxInput.value) || maxValue;
-            
-            if (max < minValue) max = minValue;
-            if (max > maxValue) max = maxValue;
-            if (max <= min) max = Math.min(maxValue, min + 1000);
-            
-            maxInput.value = max;
-            updateSlider();
+        maxInput.addEventListener('focus', function() {
+            isEditingMax = true;
+        });
+        
+        // Allow user to delete and type freely - only update slider visual
+        // Use a small timeout to debounce and ensure we don't interfere with deletion
+        let inputTimeout;
+        minInput.addEventListener('input', function(e) {
+            // Clear any pending updates
+            clearTimeout(inputTimeout);
+            // Update slider visual after a tiny delay to not interfere with typing
+            inputTimeout = setTimeout(function() {
+                if (isEditingMin) {
+                    updateSliderFromInputs();
+                }
+            }, 10);
+        });
+        
+        maxInput.addEventListener('input', function(e) {
+            // Clear any pending updates
+            clearTimeout(inputTimeout);
+            // Update slider visual after a tiny delay to not interfere with typing
+            inputTimeout = setTimeout(function() {
+                if (isEditingMax) {
+                    updateSliderFromInputs();
+                }
+            }, 10);
+        });
+        
+        // Validate and set proper values when field loses focus
+        minInput.addEventListener('blur', function() {
+            isEditingMin = false;
+            validateAndSetMin();
+        });
+        
+        maxInput.addEventListener('blur', function() {
+            isEditingMax = false;
+            validateAndSetMax();
+        });
+        
+        // Prevent any interference with keydown (especially backspace/delete)
+        minInput.addEventListener('keydown', function(e) {
+            // Allow all keys including backspace, delete, etc.
+            // Don't prevent default or stop propagation
+        });
+        
+        maxInput.addEventListener('keydown', function(e) {
+            // Allow all keys including backspace, delete, etc.
+            // Don't prevent default or stop propagation
+        });
+        
+        // Also handle change events for better compatibility
+        minInput.addEventListener('change', function() {
+            validateAndSetMin();
+        });
+        
+        maxInput.addEventListener('change', function() {
+            validateAndSetMax();
         });
         
         let isDragging = false;
@@ -674,6 +821,7 @@
                 isDragging = true;
                 activeHandle = { handle, isMin };
                 e.preventDefault();
+                e.stopPropagation();
             };
         }
         
@@ -691,13 +839,14 @@
         maxHandle.addEventListener('mousedown', startDrag(maxHandle, false));
         document.addEventListener('mousemove', drag);
         document.addEventListener('mouseup', stopDrag);
+        document.addEventListener('mouseleave', stopDrag);
         
         // Handle window resize
         window.addEventListener('resize', updateSlider);
         
         // Initial update
         updateSlider();
-    })();
+    });
     
     // Multi-select dropdown functionality
     function initMultiSelect(displayId, selectedId, dropdownId) {
