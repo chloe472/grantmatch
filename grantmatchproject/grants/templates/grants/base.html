@@ -73,15 +73,14 @@
                     <input type="text" placeholder="Search grants, events, or applications..." class="search-input">
                 </div>
                 <div class="header-actions">
+                    {% if user.is_authenticated %}
                     <div class="notification-container">
                         <button class="notification-bell" id="notification-bell">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                                 <path d="M18 8A6 6 0 0 0 6 8C6 11.09 4.5 13.5 4.5 13.5H19.5S18 11.09 18 8Z" stroke="currentColor" stroke-width="2" fill="none"/>
                                 <path d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21" stroke="currentColor" stroke-width="2"/>
                             </svg>
-                            {% if user.is_authenticated %}
-                                <span class="notification-badge" id="notification-badge" style="display: none;">0</span>
-                            {% endif %}
+                            <span class="notification-badge" id="notification-badge" style="display: none;">0</span>
                         </button>
                         <div class="notification-dropdown" id="notification-dropdown">
                             <div class="notification-header">
@@ -93,6 +92,16 @@
                             </div>
                         </div>
                     </div>
+                    {% else %}
+                    <div class="notification-container">
+                        <button class="notification-bell disabled" id="notification-bell" disabled>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <path d="M18 8A6 6 0 0 0 6 8C6 11.09 4.5 13.5 4.5 13.5H19.5S18 11.09 18 8Z" stroke="currentColor" stroke-width="2" fill="none"/>
+                                <path d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                        </button>
+                    </div>
+                    {% endif %}
                     {% if user.is_authenticated %}
                         <div class="user-avatar">
                             {% if user.profile.avatar_initials %}
@@ -139,6 +148,8 @@
         // Notification functionality
         document.addEventListener('DOMContentLoaded', function() {
             const notificationBell = document.getElementById('notification-bell');
+
+            {% if user.is_authenticated %}
             const notificationDropdown = document.getElementById('notification-dropdown');
             const markAllReadBtn = document.getElementById('mark-all-read');
             const notificationList = document.getElementById('notification-list');
@@ -162,7 +173,7 @@
 
             // Hide dropdown when clicking outside
             document.addEventListener('click', function(e) {
-                if (!notificationDropdown.contains(e.target) && !notificationBell.contains(e.target)) {
+                if (notificationDropdown && !notificationDropdown.contains(e.target) && !notificationBell.contains(e.target)) {
                     hideNotificationDropdown();
                 }
             });
@@ -290,6 +301,15 @@
                     console.error('Error updating notification badge:', error);
                 });
             }
+            {% else %}
+            // For non-authenticated users, show a message when clicking
+            if (notificationBell) {
+                notificationBell.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    alert('Please log in to view notifications.');
+                });
+            }
+            {% endif %}
 
             function getCSRFToken() {
                 // Try to get CSRF token from cookie
