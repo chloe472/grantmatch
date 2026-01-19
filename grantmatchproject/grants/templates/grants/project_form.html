@@ -1,7 +1,7 @@
 {% extends 'grants/base.html' %}
 {% load static %}
 
-{% block title %}Create New Project - Granted{% endblock %}
+{% block title %}{% if is_edit %}Edit Project{% else %}Create New Project{% endif %} - Granted{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -370,8 +370,8 @@
 <div class="project-form-modal">
     <div class="form-header">
         <div>
-            <h1>Create New Project</h1>
-            <p class="form-subtitle">Tell us about your project to find matching grants.</p>
+            <h1>{% if is_edit %}Edit Project{% else %}Create New Project{% endif %}</h1>
+            <p class="form-subtitle">{% if is_edit %}Update your project details. The grant matches will be recalculated automatically.{% else %}Tell us about your project to find matching grants.{% endif %}</p>
         </div>
         <a href="{% url 'grants:projects' %}" class="close-btn" title="Close">×</a>
     </div>
@@ -382,13 +382,13 @@
         <!-- Project Name -->
         <div class="form-group">
             <label>Project Name<span class="required">*</span></label>
-            <input type="text" name="title" class="form-control" placeholder="e.g., Digital Literacy Program for Seniors" required>
+            <input type="text" name="title" class="form-control" placeholder="e.g., Digital Literacy Program for Seniors" value="{% if project %}{{ project.title }}{% endif %}" required>
         </div>
 
         <!-- Project Description -->
         <div class="form-group">
             <label>Project Description<span class="required">*</span></label>
-            <textarea name="description" class="form-control" placeholder="Describe your project goals, activities, and expected outcomes..." required></textarea>
+            <textarea name="description" class="form-control" placeholder="Describe your project goals, activities, and expected outcomes..." required>{% if project %}{{ project.description }}{% endif %}</textarea>
         </div>
 
         <!-- Funding Amount Needed -->
@@ -400,10 +400,10 @@
             </div>
             <div class="funding-inputs">
                 <div class="funding-input-wrapper">
-                    <input type="number" id="minAmountInput" name="budget_required_min" class="form-control" min="1000" max="1000000" value="1000" step="1000" required>
+                    <input type="number" id="minAmountInput" name="budget_required_min" class="form-control" min="1000" max="1000000" value="{% if project and project.budget_required_min %}{{ project.budget_required_min|floatformat:0 }}{% else %}1000{% endif %}" step="1000" required>
                 </div>
                 <div class="funding-input-wrapper">
-                    <input type="number" id="maxAmountInput" name="budget_required_max" class="form-control" min="1000" max="1000000" value="100000" step="1000" required>
+                    <input type="number" id="maxAmountInput" name="budget_required_max" class="form-control" min="1000" max="1000000" value="{% if project and project.budget_required_max %}{{ project.budget_required_max|floatformat:0 }}{% else %}100000{% endif %}" step="1000" required>
                 </div>
             </div>
             <div class="slider-wrapper">
@@ -556,7 +556,7 @@
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                     <path d="M10 2L12.09 6.26L17 7.27L13 10.14L13.82 15.02L10 13.77L6.18 15.02L7 10.14L3 7.27L7.91 6.26L10 2Z" fill="currentColor"/>
                 </svg>
-                Find Matching Grants
+                {% if is_edit %}Update & Recalculate Matches{% else %}Find Matching Grants{% endif %}
             </button>
             <a href="{% url 'grants:projects' %}" class="btn btn-secondary">Cancel</a>
         </div>

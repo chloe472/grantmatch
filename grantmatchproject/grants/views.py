@@ -133,9 +133,8 @@ def project_create(request):
             need_support_for=need_support_for,
             want_support_from=want_support_from,
         )
-        # Trigger AI matching (simplified - in production, use actual AI service)
-        calculate_matches_for_project(project)
-        return redirect('grants:projects')
+        # Calculate matches and redirect to results page
+        return redirect('grants:project_matches', project_id=project.id)
     
     # Get agencies for the "I want support from" dropdown with grant counts
     agencies = Agency.objects.annotate(grant_count=Count('grants')).order_by('acronym')
@@ -166,6 +165,88 @@ def project_create(request):
         'beneficiary_types_options': beneficiary_types_options,
         'interested_in_options': interested_in_options,
         'need_support_for_options': need_support_for_options,
+    }
+    
+    return render(request, 'grants/project_form.html', context)
+
+
+@login_required
+def project_edit(request, project_id):
+    """Edit an existing project and recalculate matches"""
+    project = get_object_or_404(Project, id=project_id, user=request.user)
+    
+    if request.method == 'POST':
+        # Parse JSON fields from form
+        beneficiary_types = request.POST.getlist('beneficiary_types')
+        interested_in = request.POST.getlist('interested_in')
+        need_support_for = request.POST.getlist('need_support_for')
+        want_support_from = request.POST.getlist('want_support_from')
+        
+        # Parse dates
+        start_date = request.POST.get('project_start_date') or None
+        end_date = request.POST.get('project_end_date') or None
+        
+        # Parse budget amounts
+        budget_min = request.POST.get('budget_required_min')
+        budget_max = request.POST.get('budget_required_max')
+        
+        # Parse target beneficiaries count
+        target_count = request.POST.get('target_beneficiaries_count')
+        
+        # Update project
+        project.title = request.POST.get('title')
+        project.description = request.POST.get('description')
+        project.focus_area = request.POST.get('focus_area', '')
+        project.budget_required_min = float(budget_min) if budget_min else None
+        project.budget_required_max = float(budget_max) if budget_max else None
+        project.duration_years = request.POST.get('duration_years', '')
+        project.kpis = request.POST.get('kpis', '')
+        project.service_outcomes = request.POST.get('service_outcomes', '')
+        project.beneficiary_types = beneficiary_types
+        project.target_beneficiaries_count = int(target_count) if target_count else None
+        project.project_start_date = start_date if start_date else None
+        project.project_end_date = end_date if end_date else None
+        project.interested_in = interested_in
+        project.need_support_for = need_support_for
+        project.want_support_from = want_support_from
+        project.save()
+        
+        # Recalculate matches with updated project details
+        calculate_matches_for_project(project)
+        
+        return redirect('grants:project_matches', project_id=project.id)
+    
+    # Get agencies for the "I want support from" dropdown with grant counts
+    agencies = Agency.objects.annotate(grant_count=Count('grants')).order_by('acronym')
+    
+    # Define the options for multi-select fields
+    beneficiary_types_options = [
+        'Seniors', 'Youth', 'Children', 'Intellectually disabled', 
+        'Physically disabled', 'Low-income families', 'Caregivers'
+    ]
+    
+    interested_in_options = [
+        ('Arts', 26), ('Care', 17), ('Community', 33), ('Digital Skills/Tools', 9),
+        ('Education/Learning', 24), ('Engagement Marketing', 11), ('Environment', 7),
+        ('Health', 15), ('Heritage', 14), ('Social Cohesion', 15),
+        ('Social Service', 21), ('Sport', 14), ('Youth', 19)
+    ]
+    
+    need_support_for_options = [
+        ('Apps/Social Media/Website', 16), ('Classes/Seminar/Workshop', 28),
+        ('Construction', 3), ('Dialogue/Conversation', 14),
+        ('Event/Exhibition/Performance', 27), ('Fund-Raising', 6),
+        ('Music/Video', 18), ('Publication', 17),
+        ('Research/Documentation/Prototype', 15), ('Visual Arts', 11)
+    ]
+    
+    context = {
+        'project': project,
+        'agencies': agencies,
+        'beneficiary_types_options': beneficiary_types_options,
+        'interested_in_options': interested_in_options,
+        'need_support_for_options': need_support_for_options,
+        'is_edit': True,
     }
     
     return render(request, 'grants/project_form.html', context)
@@ -250,21 +331,20 @@ def calculate_matches_for_project(project):
                 # Add some base score for open grants
                 score += 10
             
-            # Only create matches with 70%+ score
-            if score >= 70:
-                match, created = GrantMatch.objects.update_or_create(
-                    project=project,
-                    grant=grant,
-                    defaults={
-                        'match_score': min(score, 100),
-                        'match_reasons': reasons[:3] if reasons else ["Match found"]
-                    }
-                )
-                
-                if created:
-                    matches_created += 1
-                else:
-                    matches_updated += 1
+            # Create/update matches for all grants (no minimum threshold)
+            match, created = GrantMatch.objects.update_or_create(
+                project=project,
+                grant=grant,
+                defaults={
+                    'match_score': min(score, 100),
+                    'match_reasons': reasons[:3] if reasons else ["Grant opportunity"]
+                }
+            )
+            
+            if created:
+                matches_created += 1
+            else:
+                matches_updated += 1
                     
         except Exception as e:
             print(f"Error matching grant {grant.id} ({grant.title}): {e}")
@@ -272,6 +352,123 @@ def calculate_matches_for_project(project):
     
     print(f"Matching complete: {matches_created} new matches, {matches_updated} updated matches")
     return matches_created + matches_updated
+
+
+@login_required
+def project_matches(request, project_id):
+    """Display matching grants for a project with scores calculated using Gemini AI"""
+    project = get_object_or_404(Project, id=project_id, user=request.user)
+    
+    # Get all open grants
+    grants = Grant.objects.filter(status='open').select_related('agency')
+    
+    # Initialize Gemini service
+    use_gemini = bool(getattr(settings, 'GEMINI_API_KEY', ''))
+    gemini_service = None
+    
+    if use_gemini:
+        try:
+            gemini_service = GeminiMatchingService()
+            print(f"✓ Gemini AI service initialized successfully")
+        except Exception as e:
+            print(f"✗ Failed to initialize Gemini service: {e}")
+            use_gemini = False
+    else:
+        print(f"⚠ No Gemini API key configured - using fallback matching")
+    
+    # Prepare project data
+    project_data = {
+        'title': project.title,
+        'description': project.description,
+        'focus_area': project.focus_area,
+        'budget_required_min': float(project.budget_required_min) if project.budget_required_min else None,
+        'budget_required_max': float(project.budget_required_max) if project.budget_required_max else None,
+        'duration_years': project.duration_years,
+        'kpis': project.kpis,
+        'service_outcomes': project.service_outcomes,
+        'beneficiary_types': project.beneficiary_types or [],
+        'interested_in': project.interested_in or [],
+        'need_support_for': project.need_support_for or [],
+        'want_support_from': project.want_support_from or [],
+    }
+    
+    # Calculate matches for all grants
+    matching_grants = []
+    
+    for grant in grants:
+        try:
+            if use_gemini and gemini_service:
+                # Use Gemini AI for intelligent matching
+                grant_data = {
+                    'title': grant.title,
+                    'description': grant.description,
+                    'agency_name': grant.agency.name,
+                    'agency_acronym': grant.agency.acronym,
+                    'funding_min': float(grant.funding_min) if grant.funding_min else None,
+                    'funding_max': float(grant.funding_max) if grant.funding_max else None,
+                    'duration_years': grant.duration_years,
+                    'eligibility_criteria': grant.eligibility_criteria,
+                    'closing_date': str(grant.closing_date) if grant.closing_date else None,
+                }
+                
+                score, reasons = gemini_service.match_project_to_grant(project_data, grant_data)
+                
+            else:
+                # Fallback to simple matching logic
+                score = 0
+                reasons = []
+                
+                if project.focus_area and project.focus_area.lower() in grant.description.lower():
+                    score += 30
+                    reasons.append(f"Perfect alignment with {project.focus_area} programs")
+                
+                if project.budget_required_min and grant.funding_min:
+                    if grant.funding_min <= project.budget_required_max and grant.funding_max >= project.budget_required_min:
+                        score += 25
+                        reasons.append("Budget range matches your requirements")
+                
+                if project.kpis and grant.description:
+                    score += 20
+                    reasons.append("KPIs align with your service outcomes")
+                
+                if project.duration_years and grant.duration_years:
+                    score += 15
+                    reasons.append("Timeline aligns with project scope")
+                
+                score += 10
+            
+            # Include all grants with calculated scores (display all matches)
+            matching_grants.append({
+                'grant': grant,
+                'match_score': min(score, 100),
+                'match_reasons': reasons[:3] if reasons else ["Grant opportunity"]
+            })
+                
+        except Exception as e:
+            print(f"Error matching grant {grant.id} ({grant.title}): {e}")
+            continue
+    
+    # Sort by match score (highest first)
+    matching_grants.sort(key=lambda x: x['match_score'], reverse=True)
+    
+    print(f"✓ Processed {len(matching_grants)} grants - Using {'Gemini AI' if use_gemini else 'Fallback matching'}")
+    
+    # Get user's saved grants for the star icon
+    saved_grant_ids = set(
+        GrantMatch.objects.filter(
+            project__user=request.user,
+            is_saved=True
+        ).values_list('grant_id', flat=True)
+    )
+    
+    context = {
+        'project': project,
+        'matching_grants': matching_grants,
+        'saved_grant_ids': saved_grant_ids,
+        'use_gemini': use_gemini,
+    }
+    
+    return render(request, 'grants/project_matches.html', context)
 
 
 @login_required
@@ -299,16 +496,9 @@ def grants_list(request):
     if status_filter:
         grants = grants.filter(status=status_filter)
     
-    # Match score filtering
-    if match_score_filter:
-        if match_score_filter == '90+':
-            grants = grants.filter(match_score__gte=90)
-        elif match_score_filter == '80-89':
-            grants = grants.filter(match_score__gte=80, match_score__lt=90)
-        elif match_score_filter == '70-79':
-            grants = grants.filter(match_score__gte=70, match_score__lt=80)
-        elif match_score_filter == 'below-70':
-            grants = grants.filter(match_score__lt=70)
+    # Match score filtering - REMOVED: Match scores should only come from GrantMatch records
+    # Users should not filter by match score in browse all grants
+    # Match scores are only available after creating a project and searching
     
     # Deadline filtering
     if deadline_filter:
@@ -349,15 +539,17 @@ def grants_list(request):
             for match in matches:
                 user_grant_matches[match.grant_id] = match
     
-    # Annotate grants with saved status and match reasons
-    grants_list = list(grants.order_by('-match_score', '-closing_date'))
+    # Annotate grants with saved status and match data (only from GrantMatch records)
+    grants_list = list(grants.order_by('-closing_date'))
     
-    # Add match reasons to each grant
+    # Add match data to each grant (only if there's an actual GrantMatch record)
     for grant in grants_list:
         if grant.id in user_grant_matches:
             match = user_grant_matches[grant.id]
+            grant.user_match_score = match.match_score
             grant.user_match_reasons = match.match_reasons[:3] if match.match_reasons else []
         else:
+            grant.user_match_score = None  # No match - don't show score
             grant.user_match_reasons = []
     
     agencies = Agency.objects.all().order_by('acronym')
@@ -421,11 +613,12 @@ def grant_detail(request, grant_id):
         match_score = match.match_score
         match_reasons = match.match_reasons or []
     
-    # Generate AI-powered match analysis using Gemini
+    # Generate AI-powered match analysis using Gemini - ONLY if there's an actual match
     positive_reasons = match_reasons[:4] if match_reasons else []
     negative_reasons = []
     
-    if user_project:
+    # Only generate AI analysis if there's an actual GrantMatch record
+    if user_project and match_score > 0:
         try:
             from .gemini_service import GeminiMatchingService
             gemini_service = GeminiMatchingService()

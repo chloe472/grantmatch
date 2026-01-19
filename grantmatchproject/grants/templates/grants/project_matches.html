@@ -1,0 +1,476 @@
+{% extends 'grants/base.html' %}
+{% load static %}
+
+{% block title %}Matching Grants - {{ project.title }} - Granted{% endblock %}
+
+{% block extra_css %}
+<style>
+    .project-matches-page {
+        padding: 32px;
+    }
+    
+    .matches-header {
+        margin-bottom: 32px;
+    }
+    
+    .matches-header h1 {
+        font-size: 28px;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin-bottom: 8px;
+    }
+    
+    .matches-header .project-title {
+        font-size: 18px;
+        color: var(--text-gray);
+        margin-bottom: 16px;
+    }
+    
+    .matches-header .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--primary-blue);
+        text-decoration: none;
+        font-size: 14px;
+        margin-bottom: 16px;
+    }
+    
+    .matches-header .back-link:hover {
+        text-decoration: underline;
+    }
+    
+    .matches-stats {
+        display: flex;
+        gap: 24px;
+        margin-bottom: 24px;
+        padding: 16px;
+        background: var(--bg-gray-light);
+        border-radius: 8px;
+    }
+    
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .stat-value {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--primary-blue);
+    }
+    
+    .stat-label {
+        font-size: 14px;
+        color: var(--text-gray);
+    }
+    
+    .grants-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+        gap: 24px;
+    }
+    
+    .grant-card {
+        background: var(--bg-white);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 24px;
+        transition: all 0.2s;
+        position: relative;
+    }
+    
+    .grant-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+    
+    .grant-card-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+    
+    .grant-logo-container {
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg-gray-light);
+        flex-shrink: 0;
+        position: relative;
+    }
+    
+    .grant-logo-fallback {
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 18px;
+        color: white;
+    }
+    
+    .grant-logo-img {
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        object-fit: contain;
+        display: none;
+    }
+    
+    .grant-card-header-content {
+        flex: 1;
+    }
+    
+    .grant-card-header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+    
+    .grant-agency-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-gray);
+    }
+    
+    .match-badge-top {
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+        color: white;
+    }
+    
+    .match-badge-92plus {
+        background: #10b981;
+    }
+    
+    .match-badge-85plus {
+        background: #14b8a6;
+    }
+    
+    .match-badge-82plus {
+        background: #3b82f6;
+    }
+    
+    .match-badge-75plus {
+        background: #eab308;
+    }
+    
+    .grant-title-large {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin-bottom: 8px;
+        line-height: 1.4;
+    }
+    
+    .grant-funding-large {
+        font-size: 16px;
+        font-weight: 500;
+        color: var(--primary-blue);
+        margin-bottom: 12px;
+    }
+    
+    .grant-deadline-orange {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+        color: #f97316;
+        margin-bottom: 16px;
+    }
+    
+    .match-reasons {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 16px 0;
+    }
+    
+    .match-reasons li {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        font-size: 14px;
+        color: var(--text-gray);
+        margin-bottom: 8px;
+    }
+    
+    .match-reasons li svg {
+        flex-shrink: 0;
+        margin-top: 2px;
+        color: #10b981;
+    }
+    
+    .grant-card-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-top: 16px;
+        border-top: 1px solid var(--border-color);
+    }
+    
+    .grant-badges {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .grant-badge {
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+        background: var(--bg-gray-light);
+        color: var(--text-gray);
+    }
+    
+    .grant-badge-status {
+        background: #dcfce7;
+        color: #166534;
+    }
+    
+    .grant-card-actions {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .btn-view-details {
+        padding: 8px 16px;
+        background: var(--primary-blue);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        text-decoration: none;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    
+    .btn-view-details:hover {
+        background: #2563eb;
+    }
+    
+    .btn-save-star {
+        width: 36px;
+        height: 36px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        background: var(--bg-white);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .btn-save-star:hover {
+        border-color: var(--primary-blue);
+        background: var(--bg-gray-light);
+    }
+    
+    .btn-save-star.saved {
+        background: #fef3c7;
+        border-color: #f59e0b;
+    }
+    
+    .btn-save-star.saved svg {
+        color: #f59e0b;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 64px 32px;
+        color: var(--text-gray);
+    }
+    
+    .empty-state h2 {
+        font-size: 24px;
+        margin-bottom: 8px;
+        color: var(--text-dark);
+    }
+    
+    .ai-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        background: #f0f9ff;
+        color: #0369a1;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+        margin-bottom: 16px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="project-matches-page">
+    <div class="matches-header">
+        <a href="{% url 'grants:projects' %}" class="back-link">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M10 12L6 8L10 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Back to Projects
+        </a>
+        <h1>Matching Grants</h1>
+        <div class="project-title">Project: {{ project.title }}</div>
+        
+        {% if use_gemini %}
+        <div class="ai-badge">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M8 2L9.5 5.5L13 6.5L10.5 9.5L11 13L8 11.5L5 13L5.5 9.5L3 6.5L6.5 5.5L8 2Z" fill="currentColor"/>
+            </svg>
+            Powered by Gemini AI
+        </div>
+        {% endif %}
+        
+        <div class="matches-stats">
+            <div class="stat-item">
+                <div class="stat-value">{{ matching_grants|length }}</div>
+                <div class="stat-label">Matching Grants</div>
+            </div>
+            {% if matching_grants %}
+            <div class="stat-item">
+                <div class="stat-value">{{ matching_grants.0.match_score }}%</div>
+                <div class="stat-label">Highest Match</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% if matching_grants %}
+    <div class="grants-grid">
+        {% for match in matching_grants %}
+        <div class="grant-card">
+            <div class="grant-card-header">
+                <div class="grant-logo-container">
+                    <div class="grant-logo-fallback" style="background: {% cycle '#3b82f6' '#10b981' '#f59e0b' '#ef4444' '#8b5cf6' '#ec4899' as bgcolor %};">
+                        {{ match.grant.agency.acronym|slice:":2"|upper }}
+                    </div>
+                    {% if match.grant.agency.logo_url %}
+                        {% with logo_path=match.grant.agency.logo_url %}
+                        <!-- Use URL directly -->
+                        <img src="{{ logo_path }}" 
+                             alt="{{ match.grant.agency.name }}" 
+                             class="grant-logo-img"
+                             onload="this.style.display='block'; this.previousElementSibling.style.display='none';"
+                             onerror="this.style.display='none'; this.previousElementSibling.style.display='flex';"
+                             style="display: none;">
+                        {% endwith %}
+                    {% else %}
+                        <!-- Try default static file paths with multiple extensions (PNG first) -->
+                        {% with agency_lower=match.grant.agency.acronym|lower %}
+                        <img src="{% static 'agency-logos/' %}{{ agency_lower }}.png" 
+                             alt="{{ match.grant.agency.name }}" 
+                             class="grant-logo-img"
+                             onload="this.style.display='block'; this.previousElementSibling.style.display='none';"
+                             onerror="tryNextFormat(this, '{{ agency_lower }}')"
+                             style="display: none;">
+                        {% endwith %}
+                    {% endif %}
+                </div>
+                <div class="grant-card-header-content">
+                    <div class="grant-card-header-row">
+                        <span class="grant-agency-name">{{ match.grant.agency.acronym }}</span>
+                        <span class="match-badge-top 
+                            {% if match.match_score >= 92 %}match-badge-92plus
+                            {% elif match.match_score >= 85 %}match-badge-85plus
+                            {% elif match.match_score >= 82 %}match-badge-82plus
+                            {% elif match.match_score >= 75 %}match-badge-75plus
+                            {% else %}match-badge-75plus{% endif %}">
+                            {{ match.match_score }}% Match
+                        </span>
+                    </div>
+                    <h2 class="grant-title-large">{{ match.grant.title }}</h2>
+                    <div class="grant-funding-large">{{ match.grant.funding_range }}</div>
+                    <div class="grant-deadline-orange">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <rect x="3" y="2" width="10" height="12" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                            <path d="M5 1V4M11 1V4M3 7H13" stroke="currentColor" stroke-width="1.5"/>
+                        </svg>
+                        Closes: {{ match.grant.closing_date|date:"d M Y"|default:"TBA" }}
+                    </div>
+                </div>
+            </div>
+            
+            {% if match.match_reasons %}
+            <ul class="match-reasons">
+                {% for reason in match.match_reasons %}
+                <li>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <circle cx="8" cy="8" r="6" fill="currentColor"/>
+                        <path d="M5 8L7 10L11 6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    {{ reason }}
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            
+            <div class="grant-card-footer">
+                <div class="grant-badges">
+                    {% if match.grant.duration_years %}
+                    <span class="grant-badge">{{ match.grant.duration_years }}</span>
+                    {% endif %}
+                    <span class="grant-badge grant-badge-status">{{ match.grant.get_status_display }}</span>
+                </div>
+                <div class="grant-card-actions">
+                    <a href="{% url 'grants:grant_detail' match.grant.id %}" class="btn-view-details">View Details</a>
+                    <button class="btn-save-star {% if match.grant.id in saved_grant_ids %}saved{% endif %}" 
+                            onclick="toggleSaveGrant({{ match.grant.id }}, this)">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="{% if match.grant.id in saved_grant_ids %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2">
+                            <path d="M10 15L5 10L6.5 8.5L10 12L13.5 8.5L15 10L10 15Z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <h2>No Matching Grants Found</h2>
+        <p>We couldn't find any grants that match your project criteria. Try adjusting your project details or check back later for new opportunities.</p>
+        <a href="{% url 'grants:project_edit' project.id %}" class="btn-view-details" style="margin-top: 16px; display: inline-block;">Edit Project</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function toggleSaveGrant(grantId, button) {
+        fetch(`/grants/grants/${grantId}/save/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.saved) {
+                button.classList.add('saved');
+                button.querySelector('svg').setAttribute('fill', 'currentColor');
+            } else {
+                button.classList.remove('saved');
+                button.querySelector('svg').setAttribute('fill', 'none');
+            }
+        })
+        .catch(error => {
+            console.error('Error toggling save:', error);
+        });
+    }
+</script>
+{% endblock %}
