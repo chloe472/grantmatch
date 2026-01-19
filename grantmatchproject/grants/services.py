@@ -219,7 +219,8 @@ class SGGrantsService:
     
     def _extract_grant_sections(self, soup):
         """
-        Extract grant sections from the rendered HTML
+        Extract grant sections from the rendered HTML.
+        Also parses funding amounts from the funding_info section.
         """
         # Get all text lines that are meaningful
         all_text = soup.get_text()
@@ -228,14 +229,22 @@ class SGGrantsService:
         # Join to get full text
         full_text = '\n'.join(lines)
         
+        # Extract funding info text
+        funding_text = self._extract_section_text(full_text, ['how much funding', 'funding amount', 'grant amount', 'up to s$'])
+        
+        # Parse funding amounts from the extracted text
+        funding_min, funding_max = self._parse_funding(funding_text) if funding_text else (None, None)
+        
         extracted = {
             'about_grant': self._extract_section_text(full_text, ['about this grant', 'the aim']),
             'who_can_apply': self._extract_section_text(full_text, ['who can apply', 'eligibility', 'who is eligible']),
             'when_to_apply': self._extract_section_text(full_text, ['when to apply', 'when can i apply', 'application is open', 'application timeline']),
-            'funding_info': self._extract_section_text(full_text, ['how much funding', 'funding amount', 'grant amount', 'up to s$']),
+            'funding_info': funding_text,
             'how_to_apply': self._extract_section_text(full_text, ['how to apply', 'completing the grant', 'application process']),
             'required_documents': self._extract_section_text(full_text, ['documents required', 'required documents', 'supporting documents']),
-            'document_links': self._extract_document_links(soup)
+            'document_links': self._extract_document_links(soup),
+            'funding_min': funding_min,
+            'funding_max': funding_max
         }
         
         return extracted
