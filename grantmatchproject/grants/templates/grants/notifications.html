@@ -1,0 +1,203 @@
+{% extends 'grants/base.html' %}
+{% load static %}
+
+{% block title %}Notifications - Granted{% endblock %}
+
+{% block content %}
+<div class="notifications-page">
+    <div class="page-header">
+        <h1>Notifications</h1>
+        <p>Stay updated on your grant applications and opportunities</p>
+    </div>
+
+    {% if notifications %}
+        <form method="post" id="notifications-form">
+            {% csrf_token %}
+            <div class="notifications-list">
+                {% for notification in notifications %}
+                    <div class="notification-item {% if not notification.is_read %}unread{% endif %}">
+                        <div class="notification-header">
+                            <input type="checkbox" name="notification_ids" value="{{ notification.id }}" class="notification-checkbox">
+                            <h3>{{ notification.title }}</h3>
+                            <span class="notification-date">{{ notification.created_at|date:"M d, Y H:i" }}</span>
+                        </div>
+                        <div class="notification-content">
+                            <p>{{ notification.message }}</p>
+                            {% if notification.link %}
+                                <a href="{{ notification.link }}" class="notification-link">View Details</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="notifications-actions">
+                <button type="submit" class="btn btn-secondary">Mark Selected as Read</button>
+                <button type="button" class="btn btn-outline" onclick="selectAll()">Select All</button>
+            </div>
+        </form>
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+                    <path d="M18 8A6 6 0 0 0 6 8C6 11.09 4.5 13.5 4.5 13.5H19.5S18 11.09 18 8Z" stroke="currentColor" stroke-width="2" fill="none"/>
+                    <path d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21" stroke="currentColor" stroke-width="2"/>
+                </svg>
+            </div>
+            <h3>No notifications yet</h3>
+            <p>You'll receive notifications about your applications, deadlines, and new grant opportunities.</p>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+.notifications-page {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.page-header {
+    margin-bottom: 2rem;
+}
+
+.page-header h1 {
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+}
+
+.page-header p {
+    color: #6c757d;
+    margin: 0;
+}
+
+.notifications-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.notification-item {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1.5rem;
+    transition: all 0.2s ease;
+}
+
+.notification-item.unread {
+    border-left: 4px solid #007bff;
+    background: #f8f9ff;
+}
+
+.notification-item:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.notification-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.notification-checkbox {
+    width: 18px;
+    height: 18px;
+}
+
+.notification-header h3 {
+    flex: 1;
+    margin: 0;
+    font-size: 1.1rem;
+    color: #2c3e50;
+}
+
+.notification-date {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.notification-content p {
+    margin: 0 0 1rem 0;
+    color: #495057;
+    line-height: 1.5;
+}
+
+.notification-link {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.notification-link:hover {
+    text-decoration: underline;
+}
+
+.notifications-actions {
+    margin-top: 2rem;
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.btn-outline {
+    background: transparent;
+    color: #6c757d;
+    border: 1px solid #6c757d;
+}
+
+.btn-outline:hover {
+    background: #6c757d;
+    color: white;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+}
+
+.empty-icon {
+    color: #adb5bd;
+    margin-bottom: 1.5rem;
+}
+
+.empty-state h3 {
+    color: #6c757d;
+    margin-bottom: 1rem;
+}
+
+.empty-state p {
+    color: #adb5bd;
+    margin: 0;
+}
+</style>
+
+<script>
+function selectAll() {
+    const checkboxes = document.querySelectorAll('.notification-checkbox');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    
+    checkboxes.forEach(cb => {
+        cb.checked = !allChecked;
+    });
+}
+</script>
+{% endblock %}

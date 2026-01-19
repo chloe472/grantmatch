@@ -57,7 +57,7 @@ def dashboard(request):
     ).order_by('closing_date')[:3]
     
     # Get unread notifications count
-    unread_notifications = Notification.objects.filter(user=user, is_read=False).count()
+    # unread_notifications = Notification.objects.filter(user=user, is_read=False).count()
     
     # Get new grants matching user's projects (if any)
     new_matching_grants = []
@@ -78,7 +78,7 @@ def dashboard(request):
         'projects': projects,
         'recent_matches': recent_matches,
         'upcoming_deadlines': upcoming_deadlines,
-        'unread_notifications': unread_notifications,
+        # 'unread_notifications': unread_notifications,
         'new_matching_grants': new_matching_grants[:2],
     }
     
@@ -986,6 +986,39 @@ def update_application_status(request, application_id):
     application.save()
     
     return JsonResponse({'success': True, 'status': new_status})
+
+
+@login_required
+def mark_notification_read(request, notification_id):
+    """Mark a single notification as read via AJAX"""
+    if request.method == 'POST':
+        notification = get_object_or_404(Notification, id=notification_id, user=request.user)
+        notification.is_read = True
+        notification.save()
+        return JsonResponse({'success': True})
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+
+@login_required
+def notifications_view(request):
+    """View user notifications"""
+    notifications = Notification.objects.filter(user=request.user).order_by('-created_at')
+    
+    if request.method == 'POST':
+        # Mark notifications as read
+        notification_ids = request.POST.getlist('notification_ids')
+        if notification_ids:
+            Notification.objects.filter(
+                user=request.user,
+                id__in=notification_ids
+            ).update(is_read=True)
+        return redirect('grants:notifications')
+    
+    context = {
+        'notifications': notifications,
+    }
+    
+    return render(request, 'grants/notifications.html', context)
 
 
 @login_required
