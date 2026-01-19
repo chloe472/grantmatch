@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 from decimal import Decimal
 import re
+from urllib.parse import urljoin
 from .models import Grant, Agency
 
 
@@ -201,10 +202,11 @@ class SGGrantsService:
             if how_to_apply:
                 additional_data['how_to_apply'] = how_to_apply
             
-            # Extract documents required
-            documents_section = self._extract_section_by_heading(main_content, ['Documents Required', 'Required Documents', 'DOCUMENTS REQUIRED'])
-            if documents_section:
-                additional_data['required_documents'] = documents_section
+            # Extract documents required with download links
+            documents_data = self._extract_documents_section(main_content)
+            if documents_data:
+                additional_data['required_documents'] = documents_data.get('text', '')
+                additional_data['document_links'] = documents_data.get('links', [])
             
             return additional_data
         except Exception as e:
@@ -286,6 +288,72 @@ class SGGrantsService:
                         return '\n\n'.join(cleaned_texts)
         
         return None
+    
+    def _extract_documents_section(self, soup):
+        """
+        Extract documents section with download links
+        Returns dict with 'text' and 'links' (list of dicts with 'name', 'url', 'size')
+        """
+        documents_data = {'text': '', 'links': []}
+        
+        # Find documents section heading
+        doc_headings = ['Documents Required', 'Required Documents', 'DOCUMENTS REQUIRED FOR APPLICATION']
+        heading = None
+        
+        for heading_text in doc_headings:
+            for text_node in soup.find_all(string=re.compile(rf'{re.escape(heading_text)}', re.I)):
+                parent = text_node.find_parent(['h1', 'h2', 'h3', 'h4', 'h5', 'strong', 'b', 'p', 'div'])
+                if parent:
+                    heading = parent
+                    break
+            if heading:
+                break
+        
+        if heading:
+            # Get text content
+            section_text = []
+            current = heading
+            
+            # Find all links in the section
+            section = heading.find_parent(['div', 'section']) or heading
+            links = section.find_all('a', href=True)
+            
+            for link in links:
+                link_text = link.get_text(strip=True)
+                link_url = link.get('href', '')
+                # Make absolute URL if relative
+                if link_url and not link_url.startswith('http'):
+                    link_url = urljoin(self.BASE_URL, link_url)
+                
+                # Try to extract file size from text (e.g., "file.pdf (PDF 1.2 MB)")
+                size_match = re.search(r'\(([^)]+)\)', link_text)
+                file_size = size_match.group(1) if size_match else ''
+                
+                # Extract file name (remove size info)
+                file_name = re.sub(r'\s*\([^)]+\)', '', link_text).strip()
+                
+                documents_data['links'].append({
+                    'name': file_name,
+                    'url': link_url,
+                    'size': file_size
+                })
+            
+            # Get section text
+            for sibling in heading.next_siblings:
+                if hasattr(sibling, 'name'):
+                    if sibling.name in ['h1', 'h2', 'h3', 'h4', 'h5']:
+                        break
+                    text = sibling.get_text(strip=True)
+                    if text:
+                        section_text.append(text)
+                elif isinstance(sibling, str):
+                    text = sibling.strip()
+                    if text:
+                        section_text.append(text)
+            
+            documents_data['text'] = '\n'.join(section_text)
+        
+        return documents_data
     
     def _fetch_via_scraping(self):
         """

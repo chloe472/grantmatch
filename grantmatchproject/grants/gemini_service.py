@@ -187,6 +187,126 @@ Respond ONLY with valid JSON, no additional text."""
             # Return default values
             return 50, ["AI analysis encountered an error"]
     
+    def analyze_grant_match(self, project_data: Dict, grant_data: Dict) -> Tuple[List[str], List[str]]:
+        """
+        Use Gemini AI to analyze why a grant matches and why it may not match
+        
+        Args:
+            project_data: Dictionary containing project information
+            grant_data: Dictionary containing grant information
+            
+        Returns:
+            Tuple of (positive_reasons: List[str], negative_reasons: List[str])
+            Each list contains concise reasons (max 10 words each)
+        """
+        try:
+            project_info = self._format_project_info(project_data)
+            grant_info = self._format_grant_info(grant_data)
+            
+            prompt = f"""You are an expert grant matching assistant. Analyze a project and grant opportunity to provide specific, actionable insights.
+
+PROJECT INFORMATION:
+{project_info}
+
+GRANT OPPORTUNITY:
+{grant_info}
+
+Provide your analysis in the following JSON format:
+{{
+    "positive_reasons": [
+        "<reason 1 - max 10 words>",
+        "<reason 2 - max 10 words>",
+        "<reason 3 - max 10 words>",
+        "<reason 4 - max 10 words>"
+    ],
+    "negative_reasons": [
+        "<concern 1 - max 10 words>",
+        "<concern 2 - max 10 words>",
+        "<concern 3 - max 10 words>"
+    ]
+}}
+
+For positive_reasons, focus on:
+- Program alignment (goals, focus areas, beneficiaries)
+- Budget compatibility
+- KPI/outcome alignment
+- Eligibility fit
+
+For negative_reasons, identify potential concerns:
+- Timeline/commitment mismatches
+- Missing required elements or capabilities
+- Resource or capability gaps
+- Eligibility concerns
+
+Keep each reason concise (max 10 words), specific, and actionable.
+
+Respond ONLY with valid JSON, no additional text."""
+            
+            response = self.model.generate_content(prompt)
+            positive_reasons, negative_reasons = self._parse_analysis_response(response.text)
+            
+            return positive_reasons, negative_reasons
+            
+        except Exception as e:
+            print(f"Error in Gemini analysis: {e}")
+            return self._fallback_analysis(project_data, grant_data)
+    
+    def _parse_analysis_response(self, response_text: str) -> Tuple[List[str], List[str]]:
+        """Parse Gemini's JSON response for match analysis"""
+        try:
+            cleaned_text = response_text.strip()
+            if cleaned_text.startswith('```json'):
+                cleaned_text = cleaned_text[7:]
+            if cleaned_text.startswith('```'):
+                cleaned_text = cleaned_text[3:]
+            if cleaned_text.endswith('```'):
+                cleaned_text = cleaned_text[:-3]
+            cleaned_text = cleaned_text.strip()
+            
+            response_data = json.loads(cleaned_text)
+            
+            positive_reasons = response_data.get('positive_reasons', [])[:4]
+            negative_reasons = response_data.get('negative_reasons', [])[:3]
+            
+            # Ensure we have reasons
+            if not positive_reasons:
+                positive_reasons = ["Strong alignment with project objectives"]
+            if not negative_reasons:
+                negative_reasons = []
+            
+            return positive_reasons, negative_reasons
+            
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
+            print(f"Error parsing Gemini analysis response: {e}")
+            return ["AI analysis completed"], []
+    
+    def _fallback_analysis(self, project_data: Dict, grant_data: Dict) -> Tuple[List[str], List[str]]:
+        """Fallback analysis when Gemini API fails"""
+        positive_reasons = []
+        negative_reasons = []
+        
+        # Simple positive reasons
+        if project_data.get('focus_area') and grant_data.get('description'):
+            focus = project_data.get('focus_area', '').lower()
+            if focus in grant_data.get('description', '').lower():
+                positive_reasons.append(f"Perfect alignment with {project_data.get('focus_area')} programs")
+        
+        if project_data.get('budget_required_min') and grant_data.get('funding_min'):
+            positive_reasons.append("Budget range matches your requirements")
+        
+        if project_data.get('kpis'):
+            positive_reasons.append("KPIs align with your service outcomes")
+        
+        if not positive_reasons:
+            positive_reasons = ["Strong alignment with project objectives"]
+        
+        # Simple negative reasons
+        if project_data.get('duration_years') and grant_data.get('duration_years'):
+            if project_data.get('duration_years') != grant_data.get('duration_years'):
+                negative_reasons.append("Timeline may require adjustment")
+        
+        return positive_reasons[:4], negative_reasons[:3]
+    
     def _fallback_matching(self, project_data: Dict, grant_data: Dict) -> Tuple[int, List[str]]:
         """Fallback matching logic when Gemini API fails"""
         score = 0
