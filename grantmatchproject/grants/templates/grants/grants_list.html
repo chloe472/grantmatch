@@ -13,20 +13,20 @@
     <!-- Filters -->
     <div class="filters-bar">
         <form method="get" class="filters-form">
-            <input type="text" name="search" placeholder="Search grants..." value="{{ search_query }}" class="filter-input">
-            <select name="agency" class="filter-select">
+            <input type="text" id="search-input" name="search" placeholder="Search grants..." value="{{ search_query }}" class="filter-input">
+            <select id="agency-select" name="agency" class="filter-select">
                 <option value="">All Agencies</option>
                 {% for agency in agencies %}
                 <option value="{{ agency.acronym }}" {% if agency_filter == agency.acronym %}selected{% endif %}>{{ agency.name }}</option>
                 {% endfor %}
             </select>
-            <select name="status" class="filter-select">
+            <select id="status-select" name="status" class="filter-select">
                 <option value="">All Status</option>
                 <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Open</option>
                 <option value="closed" {% if status_filter == 'closed' %}selected{% endif %}>Closed</option>
                 <option value="upcoming" {% if status_filter == 'upcoming' %}selected{% endif %}>Upcoming</option>
             </select>
-            <button type="submit" class="btn btn-primary">Filter</button>
+            <button type="submit" id="filter-submit" name="filter-submit" class="btn btn-primary">Filter</button>
         </form>
     </div>
 
@@ -61,9 +61,9 @@
             </div>
             <div class="grant-card-actions">
                 <a href="{% url 'grants:grant_detail' grant.id %}" class="btn btn-primary btn-sm">View Details</a>
-                <button class="btn-icon" onclick="toggleSave({{ grant.id }})">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M10 15L5 10L6.5 8.5L10 12L13.5 8.5L15 10L10 15Z"/>
+                <button class="btn-icon" id="save-btn-{{ grant.id }}" name="save-grant" onclick="toggleSave({{ grant.id }})" data-saved="{% if grant.id in saved_grant_ids %}true{% else %}false{% endif %}" type="button" aria-label="Save grant">
+                    <svg id="star-svg-{{ grant.id }}" width="20" height="20" viewBox="0 0 20 20" fill="{% if grant.id in saved_grant_ids %}#FFB000{% else %}none{% endif %}" stroke="black" stroke-width="2">
+                        <path d="M10 2L12.09 7.26L18 8.18L14 12.14L14.82 18.02L10 15.77L5.18 18.02L6 12.14L2 8.18L7.91 7.26L10 2Z"/>
                     </svg>
                 </button>
             </div>
@@ -79,14 +79,79 @@
 
 {% block extra_js %}
 <script>
+// Track ongoing requests to prevent multiple simultaneous requests
+const saveRequestsInProgress = new Set();
+
 function toggleSave(grantId) {
+    // Prevent multiple simultaneous requests for the same grant
+    if (saveRequestsInProgress.has(grantId)) {
+        return;
+    }
+    
+    const button = document.getElementById(`save-btn-${grantId}`);
+    const starSvg = document.getElementById(`star-svg-${grantId}`);
+    const isCurrentlySaved = button.getAttribute('data-saved') === 'true';
+    
+    // Mark request as in progress
+    saveRequestsInProgress.add(grantId);
+    
+    // Disable button during request
+    button.disabled = true;
+    
+    // Immediately update the visual state (optimistic update)
+    if (isCurrentlySaved) {
+        starSvg.setAttribute('fill', 'none');
+        starSvg.setAttribute('stroke', 'black');
+        button.setAttribute('data-saved', 'false')
+        
+    } else {
+        starSvg.setAttribute('fill', '#FFB000');
+        starSvg.setAttribute('stroke', 'black');
+        button.setAttribute('data-saved', 'true');
+    }
+    
+    const csrftoken = getCookie('csrftoken');
     fetch(`/grants/${grantId}/save/`, {
         method: 'POST',
         headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
         },
-    }).then(() => {
-        location.reload();
+        credentials: 'same-origin',
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Update state based on server response
+        if (data.success) {
+            if (data.is_saved) {
+                starSvg.setAttribute('fill', '#FFB000');
+                starSvg.setAttribute('stroke', 'black');
+                button.setAttribute('data-saved', 'true');
+            } else {
+                starSvg.setAttribute('fill', 'none');
+                starSvg.setAttribute('stroke', 'black');
+                button.setAttribute('data-saved', 'false');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        // Revert on error
+        if (isCurrentlySaved) {
+            starSvg.setAttribute('fill', '#FFB000');
+            starSvg.setAttribute('stroke', 'black');
+            button.setAttribute('data-saved', 'true');
+        } else {
+            starSvg.setAttribute('fill', 'none');
+            starSvg.setAttribute('stroke', 'black');
+            button.setAttribute('data-saved', 'false');
+        }
+    })
+    .finally(() => {
+        // Re-enable button and remove from in-progress set
+        button.disabled = false;
+        saveRequestsInProgress.delete(grantId);
     });
 }
 </script>

@@ -53,7 +53,7 @@ A Django-based web application for matching organizations with grant opportuniti
 
 6. **Load sample grants data**:
    ```bash
-   python manage.py sync_grants --sample
+   python manage.py sync_grants 
    ```
 
 7. **Run the development server**:
@@ -109,7 +109,7 @@ grantmatchproject/
 │   ├── settings.py
 │   └── urls.py
 └── manage.py
-```
+```p
 
 ## Key Models
 
