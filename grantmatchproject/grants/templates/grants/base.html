@@ -73,17 +73,26 @@
                     <input type="text" placeholder="Search grants, events, or applications..." class="search-input">
                 </div>
                 <div class="header-actions">
-                    <a href="#" class="notification-bell">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                            <path d="M18 8A6 6 0 0 0 6 8C6 11.09 4.5 13.5 4.5 13.5H19.5S18 11.09 18 8Z" stroke="currentColor" stroke-width="2" fill="none"/>
-                            <path d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21" stroke="currentColor" stroke-width="2"/>
-                        </svg>
-                        {% if user.is_authenticated %}
-                            {% if user.notifications.count > 0 %}
-                                <span class="notification-badge">{{ user.notifications.count }}</span>
+                    <div class="notification-container">
+                        <button class="notification-bell" id="notification-bell">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <path d="M18 8A6 6 0 0 0 6 8C6 11.09 4.5 13.5 4.5 13.5H19.5S18 11.09 18 8Z" stroke="currentColor" stroke-width="2" fill="none"/>
+                                <path d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                            {% if user.is_authenticated %}
+                                <span class="notification-badge" id="notification-badge" style="display: none;">0</span>
                             {% endif %}
-                        {% endif %}
-                    </a>
+                        </button>
+                        <div class="notification-dropdown" id="notification-dropdown">
+                            <div class="notification-header">
+                                <h3>Notifications</h3>
+                                <button class="mark-all-read" id="mark-all-read">Mark all as read</button>
+                            </div>
+                            <div class="notification-list" id="notification-list">
+                                <div class="notification-loading">Loading notifications...</div>
+                            </div>
+                        </div>
+                    </div>
                     {% if user.is_authenticated %}
                         <div class="user-avatar">
                             {% if user.profile.avatar_initials %}
@@ -126,6 +135,174 @@
                 }
             }
         }
+
+        // Notification functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const notificationBell = document.getElementById('notification-bell');
+            const notificationDropdown = document.getElementById('notification-dropdown');
+            const markAllReadBtn = document.getElementById('mark-all-read');
+            const notificationList = document.getElementById('notification-list');
+
+            let isDropdownVisible = false;
+
+            // Initialize notification badge on page load
+            updateNotificationBadge();
+
+            // Toggle notification dropdown
+            notificationBell.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (isDropdownVisible) {
+                    hideNotificationDropdown();
+                } else {
+                    showNotificationDropdown();
+                }
+            });
+
+            // Hide dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!notificationDropdown.contains(e.target) && !notificationBell.contains(e.target)) {
+                    hideNotificationDropdown();
+                }
+            });
+
+            // Mark all notifications as read
+            markAllReadBtn.addEventListener('click', function() {
+                fetch('/notifications/mark-all-read/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCSRFToken(),
+                        'Content-Type': 'application/json',
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        loadNotifications();
+                        updateNotificationBadge();
+                    }
+                });
+            });
+
+            function showNotificationDropdown() {
+                notificationDropdown.style.display = 'block';
+                isDropdownVisible = true;
+                loadNotifications();
+            }
+
+            function hideNotificationDropdown() {
+                notificationDropdown.style.display = 'none';
+                isDropdownVisible = false;
+            }
+
+            function loadNotifications() {
+                fetch('/notifications/')
+                .then(response => response.json())
+                .then(data => {
+                    renderNotifications(data.notifications);
+                })
+                .catch(error => {
+                    console.error('Error loading notifications:', error);
+                    notificationList.innerHTML = '<div class="notification-empty">Failed to load notifications</div>';
+                });
+            }
+
+            function renderNotifications(notifications) {
+                if (notifications.length === 0) {
+                    notificationList.innerHTML = '<div class="notification-empty">No notifications yet</div>';
+                    return;
+                }
+
+                const notificationHtml = notifications.map(notification => `
+                    <div class="notification-item ${notification.is_read ? 'read' : 'unread'}" data-id="${notification.id}">
+                        <div class="notification-content">
+                            <div class="notification-title">${notification.title}</div>
+                            <div class="notification-message">${notification.message}</div>
+                            <div class="notification-time">${notification.time_ago}</div>
+                        </div>
+                        ${!notification.is_read ? '<div class="notification-unread-dot"></div>' : ''}
+                    </div>
+                `).join('');
+
+                notificationList.innerHTML = notificationHtml;
+
+                // Add click handlers for individual notifications
+                document.querySelectorAll('.notification-item').forEach(item => {
+                    item.addEventListener('click', function() {
+                        const notificationId = this.dataset.id;
+                        const notification = notifications.find(n => n.id == notificationId);
+                        
+                        // Mark as read
+                        if (!notification.is_read) {
+                            markNotificationRead(notificationId);
+                        }
+                        
+                        // Navigate to link if available
+                        if (notification.link) {
+                            window.location.href = notification.link;
+                        }
+                    });
+                });
+            }
+
+            function markNotificationRead(notificationId) {
+                fetch(`/notifications/${notificationId}/read/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCSRFToken(),
+                        'Content-Type': 'application/json',
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        updateNotificationBadge();
+                        // Update the notification item appearance
+                        const notificationItem = document.querySelector(`[data-id="${notificationId}"]`);
+                        if (notificationItem) {
+                            notificationItem.classList.remove('unread');
+                            notificationItem.classList.add('read');
+                            const unreadDot = notificationItem.querySelector('.notification-unread-dot');
+                            if (unreadDot) {
+                                unreadDot.remove();
+                            }
+                        }
+                    }
+                });
+            }
+
+            function updateNotificationBadge() {
+                fetch('/notifications/')
+                .then(response => response.json())
+                .then(data => {
+                    const unreadCount = data.notifications.filter(n => !n.is_read).length;
+                    const badge = document.getElementById('notification-badge');
+                    
+                    if (unreadCount > 0) {
+                        badge.textContent = unreadCount;
+                        badge.style.display = 'inline-block';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating notification badge:', error);
+                });
+            }
+
+            function getCSRFToken() {
+                // Try to get CSRF token from cookie
+                const csrfCookie = document.cookie.split(';').find(cookie => cookie.trim().startsWith('csrftoken='));
+                if (csrfCookie) {
+                    return csrfCookie.split('=')[1];
+                }
+                
+                // Fallback: try to find CSRF token in forms
+                const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+                return csrfInput ? csrfInput.value : '';
+            }
+        });
     </script>
 
     {% block extra_js %}{% endblock %}

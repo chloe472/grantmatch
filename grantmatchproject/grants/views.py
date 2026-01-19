@@ -990,3 +990,54 @@ def settings_view(request):
         return redirect('grants:settings')
     
     return render(request, 'grants/settings.html', {'profile': profile})
+
+
+@login_required
+def notifications_list(request):
+    """Get user's notifications as JSON"""
+    notifications = Notification.objects.filter(user=request.user).order_by('-created_at')[:20]
+    data = []
+    for notification in notifications:
+        data.append({
+            'id': notification.id,
+            'title': notification.title,
+            'message': notification.message,
+            'is_read': notification.is_read,
+            'link': notification.link,
+            'created_at': notification.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'time_ago': _get_time_ago(notification.created_at)
+        })
+    return JsonResponse({'notifications': data})
+
+
+@login_required
+def mark_notification_read(request, notification_id):
+    """Mark a notification as read"""
+    notification = get_object_or_404(Notification, id=notification_id, user=request.user)
+    notification.is_read = True
+    notification.save()
+    return JsonResponse({'success': True})
+
+
+@login_required
+def mark_all_notifications_read(request):
+    """Mark all notifications as read"""
+    Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+    return JsonResponse({'success': True})
+
+
+def _get_time_ago(created_at):
+    """Helper function to get time ago string"""
+    now = timezone.now()
+    diff = now - created_at
+    
+    if diff.days > 0:
+        return f"{diff.days} day{'s' if diff.days > 1 else ''} ago"
+    elif diff.seconds >= 3600:
+        hours = diff.seconds // 3600
+        return f"{hours} hour{'s' if hours > 1 else ''} ago"
+    elif diff.seconds >= 60:
+        minutes = diff.seconds // 60
+        return f"{minutes} minute{'s' if minutes > 1 else ''} ago"
+    else:
+        return "Just now"

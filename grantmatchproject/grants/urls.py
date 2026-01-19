@@ -21,4 +21,7 @@ urlpatterns = [
     path('applications/<int:application_id>/proposal/', views.proposal_template, name='proposal_template'),
     path('applications/create/<int:grant_id>/', views.application_create, name='application_create'),
     path('settings/', views.settings_view, name='settings'),
+    path('notifications/', views.notifications_list, name='notifications_list'),
+    path('notifications/<int:notification_id>/read/', views.mark_notification_read, name='mark_notification_read'),
+    path('notifications/mark-all-read/', views.mark_all_notifications_read, name='mark_all_notifications_read'),
 ]
