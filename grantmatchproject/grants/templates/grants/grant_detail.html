@@ -523,8 +523,8 @@
         }
     }
 
-    /* Modal Styles */
-    .modal-overlay {
+    /* Modal Styles - Modern Card Design */
+    .modal-backdrop {
         position: fixed;
         top: 0;
         left: 0;
@@ -537,29 +537,52 @@
         z-index: 1000;
     }
 
-    .modal-content {
+    .modal-card {
         background: var(--bg-white);
-        border-radius: 12px;
+        border-radius: 16px;
         width: 90%;
-        max-width: 600px;
-        max-height: 90vh;
-        overflow-y: auto;
-        box-shadow: var(--shadow-lg);
+        max-width: 500px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        overflow: hidden;
+        animation: modalSlideIn 0.3s ease-out;
+    }
+
+    @keyframes modalSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     .modal-header {
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        padding: 24px;
-        border-bottom: 1px solid var(--border-color);
+        align-items: flex-start;
+        padding: 28px 28px 20px 28px;
+        border-bottom: none;
     }
 
-    .modal-header h2 {
+    .modal-header > div {
+        flex: 1;
+    }
+
+    .modal-title {
         font-size: 24px;
-        font-weight: 600;
+        font-weight: 700;
         color: var(--text-dark);
+        margin: 0 0 8px 0;
+        line-height: 1.3;
+    }
+
+    .modal-subtitle {
+        font-size: 14px;
+        color: var(--text-gray);
         margin: 0;
+        font-weight: 400;
     }
 
     .modal-close {
@@ -576,6 +599,8 @@
         justify-content: center;
         border-radius: 6px;
         transition: all 0.2s;
+        flex-shrink: 0;
+        margin-left: 12px;
     }
 
     .modal-close:hover {
@@ -584,70 +609,79 @@
     }
 
     .modal-body {
-        padding: 24px;
+        padding: 28px;
     }
 
-    .modal-subtitle {
-        color: var(--text-gray);
-        margin-bottom: 24px;
-        font-size: 14px;
-    }
-
-    .application-options {
+    .modal-options {
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: 12px;
     }
 
-    .application-option {
-        border: 2px solid var(--border-color);
-        border-radius: 8px;
-        padding: 20px;
-        cursor: pointer;
-        transition: all 0.2s;
+    .modal-option {
         display: flex;
-        gap: 16px;
         align-items: flex-start;
+        gap: 16px;
+        padding: 20px;
+        border-radius: 12px;
+        border: 2px solid var(--border-color);
+        background: var(--bg-white);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        color: inherit;
     }
 
-    .application-option:hover {
+    .modal-option:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+    }
+
+    .modal-option--primary {
         border-color: var(--primary-blue);
+        background: #F0F8FF;
+    }
+
+    .modal-option--primary:hover {
+        border-color: var(--primary-blue);
+        background: #E6F2FF;
+        box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
+    }
+
+    .modal-option--secondary {
+        border-color: var(--border-color);
+        background: var(--bg-white);
+    }
+
+    .modal-option--secondary:hover {
+        border-color: var(--text-gray);
         background: var(--bg-gray-light);
     }
 
-    .application-option.selected {
-        border-color: var(--primary-blue);
-        background: #EFF6FF;
-    }
-
-    .option-icon {
-        color: var(--primary-blue);
+    .modal-icon {
+        font-size: 28px;
         flex-shrink: 0;
+        line-height: 1;
     }
 
-    .option-content {
+    .modal-option-content {
         flex: 1;
     }
 
-    .option-content h3 {
-        font-size: 18px;
-        font-weight: 600;
+    .modal-option-title {
+        font-size: 16px;
+        font-weight: 700;
         color: var(--text-dark);
-        margin-bottom: 8px;
+        margin: 0 0 6px 0;
+        line-height: 1.3;
     }
 
-    .option-content p {
-        font-size: 14px;
+    .modal-option-desc {
+        font-size: 13px;
         color: var(--text-gray);
         margin: 0;
         line-height: 1.5;
     }
-
-    .modal-footer {
-        display: flex;
-        gap: 12px;
-        justify-content: flex-end;
-        padding: 24px;
         border-top: 1px solid var(--border-color);
     }
 
@@ -1056,53 +1090,50 @@
 {# --- Modal --- #}
 <div id="startApplicationModal" class="modal-backdrop" style="display:none;">
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="startAppTitle">
-    <button type="button" class="modal-close" aria-label="Close"
-            onclick="closeStartApplicationModal()">×</button>
+    <div class="modal-header">
+      <div>
+        <h2 id="startAppTitle" class="modal-title">Start Your Application</h2>
+        <p class="modal-subtitle">Choose your preferred application method</p>
+      </div>
+      <button type="button" class="modal-close" aria-label="Close"
+              onclick="closeStartApplicationModal()">×</button>
+    </div>
 
-    <h3 id="startAppTitle" class="modal-title">Start Your Application</h3>
-    <p class="modal-subtitle">
-      Choose how you'd like to proceed with your grant application
-    </p>
-
-    <div class="modal-options">
-      {# 1) Recommended Proposal – goes to proposal template #}
-      <a
-        class="modal-option modal-option--primary"
-        href="{% url 'grants:start_application_recommended' grant.id %}"
-      >
-        <div class="modal-icon">📄</div>
-        <div>
-          <div class="modal-option-title">Recommended Proposal</div>
-          <div class="modal-option-desc">
-            Use our AI-generated proposal template tailored to this grant.
-            Edit and customize before submitting.
+    <div class="modal-body">
+      <div class="modal-options">
+        {# 1) Recommended Proposal Template – goes to proposal template #}
+        <a
+          class="modal-option modal-option--primary"
+          href="{% url 'grants:start_application_recommended' grant.id %}"
+        >
+          <div class="modal-icon">📝</div>
+          <div class="modal-option-content">
+            <h3 class="modal-option-title">Recommended Proposal Template</h3>
+            <p class="modal-option-desc">Draft your project proposal with Granted before applying!</p>
           </div>
-        </div>
-      </a>
+        </a>
 
-      {# 2) Application Portal – external OurSG Grants link #}
-      <a
-        class="modal-option"
-        href="{{ grant.application_url }}"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <div class="modal-icon">↗</div>
-        <div>
-          <div class="modal-option-title">Application Portal</div>
-          <div class="modal-option-desc">
-            Go to the official OurSG Grants portal to apply as an organisation
-            or individual.
+        {# 2) Application Portal – external OurSG Grants link #}
+        <a
+          class="modal-option modal-option--secondary"
+          href="{{ grant.application_url }}"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <div class="modal-icon">↗</div>
+          <div class="modal-option-content">
+            <h3 class="modal-option-title">Application Portal</h3>
+            <p class="modal-option-desc">Go directly to the official OurSG Grants Portal to apply.</p>
           </div>
-        </div>
-      </a>
+        </a>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
   function openStartApplicationModal() {
-    document.getElementById("startApplicationModal").style.display = "block";
+    document.getElementById("startApplicationModal").style.display = "flex";
   }
 
   function closeStartApplicationModal() {
@@ -1111,7 +1142,7 @@
 
   document.addEventListener("click", function (e) {
     const backdrop = document.getElementById("startApplicationModal");
-    if (!backdrop || backdrop.style.display !== "block") return;
+    if (!backdrop || backdrop.style.display !== "flex") return;
 
     if (e.target === backdrop) closeStartApplicationModal();
   });
