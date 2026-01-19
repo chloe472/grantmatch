@@ -1065,16 +1065,7 @@
 
             <!-- Action Buttons -->
             <div class="action-buttons-card">
-                {% if existing_application %}
-                    <a href="{% url 'grants:applications' %}" class="btn btn-primary btn-block">
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M4 4H16V16H4V4Z"/>
-                            <path d="M7 8H13M7 11H13M7 14H10"/>
-                        </svg>
-                        View Application ({{ existing_application.get_status_display }})
-                    </a>
-                {% else %}
-{# --- Start Application (opens modal) --- #}
+{# --- Start/Continue Application (opens modal) --- #}
 <button
   type="button"
   class="btn btn-primary btn-block"
@@ -1084,7 +1075,11 @@
     <path d="M10 3L3 7V13L10 17L17 13V7L10 3Z"></path>
     <path d="M10 10V17M3 7L10 10L17 7"></path>
   </svg>
-  Start Application
+  {% if existing_application %}
+    Continue Application
+  {% else %}
+    Start Application
+  {% endif %}
 </button>
 
 {# --- Modal --- #}
@@ -1152,7 +1147,6 @@
   });
 </script>
 
-                {% endif %}
                 <button class="btn btn-outline btn-block" onclick="toggleSave({{ grant.id }})">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="{% if is_saved %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2">
                         <path d="M10 15L5 10L6.5 8.5L10 12L13.5 8.5L15 10L10 15Z"/>
