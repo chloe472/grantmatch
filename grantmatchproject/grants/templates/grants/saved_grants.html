@@ -14,7 +14,17 @@
         <div class="grant-card">
             <div class="grant-card-header">
                 <div class="grant-icon">
-                    <span class="grant-icon-default">{{ match.grant.agency.acronym|slice:":1" }}</span>
+                    {% with agency_lower=match.grant.agency.acronym|lower %}
+                    <!-- Fallback acronym badge -->
+                    <span class="grant-icon-default" style="display: flex;">{{ match.grant.agency.acronym|slice:":1" }}</span>
+                    <!-- Try to load agency logo -->
+                    <img src="{% static 'agency-logos/' %}{{ agency_lower }}.png"
+                         alt="{{ match.grant.agency.name }}"
+                         class="agency-logo-small"
+                         onload="this.style.display='block'; this.previousElementSibling.style.display='none';"
+                         onerror="tryNextFormat(this, '{{ agency_lower }}')"
+                         style="display: none; width: 100%; height: 100%; object-fit: contain; border-radius: 6px;">
+                    {% endwith %}
                 </div>
                 <div class="grant-agency">{{ match.grant.agency.acronym }}</div>
                 <div class="match-badge match-badge-high">{{ match.match_score }}%</div>

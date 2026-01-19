@@ -3,17 +3,697 @@
 
 {% block title %}{{ grant.title }} - Granted{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Grant Detail Page Enhancements */
+    .grant-detail-page {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-gray);
+        text-decoration: none;
+        font-size: 14px;
+        margin-bottom: 24px;
+        transition: color 0.2s;
+    }
+    
+    .back-link:hover {
+        color: var(--primary-blue);
+    }
+    
+    /* Header Section */
+    .grant-detail-header {
+        background: var(--bg-white);
+        border-radius: 12px;
+        padding: 32px;
+        margin-bottom: 24px;
+        border: 1px solid var(--border-color);
+        display: flex;
+        align-items: flex-start;
+        gap: 24px;
+        position: relative;
+    }
+    
+    .grant-header-left {
+        display: flex;
+        align-items: flex-start;
+        gap: 20px;
+        flex: 1;
+    }
+    
+    .grant-header-logo {
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        background: var(--bg-gray-light);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        overflow: hidden;
+    }
+    
+    .grant-header-logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        padding: 4px;
+    }
+    
+    .grant-header-logo-fallback {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 18px;
+        color: white;
+        background: var(--primary-blue);
+    }
+    
+    .grant-header-info {
+        flex: 1;
+    }
+    
+    .grant-agency-badge {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-gray);
+        margin-bottom: 8px;
+    }
+    
+    .grant-detail-header h1 {
+        font-size: 32px;
+        font-weight: 700;
+        margin-bottom: 12px;
+        color: var(--text-dark);
+        line-height: 1.3;
+    }
+    
+    .grant-status-badges {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+    
+    .grant-header-right {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 12px;
+    }
+    
+    .match-badge-large {
+        padding: 12px 20px;
+        border-radius: 24px;
+        font-size: 18px;
+        font-weight: 700;
+        color: white;
+        background: var(--secondary-green);
+    }
+    
+    /* Match Analysis Section */
+    .match-analysis-section {
+        margin-bottom: 32px;
+    }
+    
+    .match-analysis-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+    }
+    
+    .match-box {
+        border-radius: 12px;
+        padding: 24px;
+        position: relative;
+    }
+    
+    .match-box-positive {
+        background: linear-gradient(135deg, #E0F2FE 0%, #BAE6FD 100%);
+        border: 1px solid #7DD3FC;
+    }
+    
+    .match-box-warning {
+        background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+        border: 1px solid #FCD34D;
+    }
+    
+    .match-box h3 {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        color: var(--text-dark);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .match-box-icon {
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0;
+    }
+    
+    .match-reasons-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .match-reasons-list li {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        font-size: 14px;
+        color: var(--text-dark);
+        line-height: 1.5;
+    }
+    
+    .match-reasons-list li svg {
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+    
+    .match-box-positive .match-reasons-list li svg {
+        color: #0284C7;
+    }
+    
+    .match-box-warning .match-reasons-list li svg {
+        color: #D97706;
+    }
+    
+    /* Tabs */
+    .grant-tabs {
+        display: flex;
+        gap: 8px;
+        border-bottom: 2px solid var(--border-color);
+        margin-bottom: 24px;
+        overflow-x: auto;
+    }
+    
+    .tab-button {
+        padding: 12px 20px;
+        background: none;
+        border: none;
+        border-bottom: 3px solid transparent;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text-gray);
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.2s;
+        margin-bottom: -2px;
+    }
+    
+    .tab-button:hover {
+        color: var(--text-dark);
+        background: var(--bg-gray-light);
+    }
+    
+    .tab-button.active {
+        color: var(--primary-blue);
+        border-bottom-color: var(--primary-blue);
+        font-weight: 600;
+    }
+    
+    .tab-content {
+        min-height: 400px;
+    }
+    
+    .tab-pane {
+        display: none;
+    }
+    
+    .tab-pane.active {
+        display: block;
+    }
+    
+    .tab-pane-content {
+        background: var(--bg-white);
+        border-radius: 12px;
+        padding: 24px;
+        border: 1px solid var(--border-color);
+    }
+    
+    .tab-pane-content h2 {
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: var(--text-dark);
+    }
+    
+    .tab-pane-content p {
+        color: var(--text-gray);
+        line-height: 1.8;
+        margin-bottom: 16px;
+    }
+    
+    .focus-tags {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    
+    .tag-purple {
+        background: rgba(139, 92, 246, 0.1);
+        color: #8B5CF6;
+        padding: 6px 12px;
+        border-radius: 16px;
+        font-size: 13px;
+        font-weight: 500;
+    }
+    
+    /* Documents Section */
+    .documents-section {
+        margin-top: 24px;
+    }
+    
+    .documents-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+    
+    .documents-header h3 {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin: 0;
+    }
+    
+    .document-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .document-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        background: var(--bg-gray-light);
+        border-radius: 8px;
+        transition: background 0.2s;
+    }
+    
+    .document-item:hover {
+        background: var(--border-color);
+    }
+    
+    .document-item a {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+        text-decoration: none;
+        color: var(--text-dark);
+    }
+    
+    .document-icon {
+        width: 40px;
+        height: 40px;
+        background: var(--primary-blue);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        flex-shrink: 0;
+    }
+    
+    .document-info {
+        flex: 1;
+    }
+    
+    .document-name {
+        font-weight: 500;
+        color: var(--text-dark);
+        margin-bottom: 4px;
+    }
+    
+    .document-size {
+        font-size: 12px;
+        color: var(--text-gray);
+    }
+    
+    /* Quick Facts Sidebar */
+    .quick-facts-card {
+        background: var(--bg-white);
+        border-radius: 12px;
+        padding: 24px;
+        border: 1px solid var(--border-color);
+        margin-bottom: 16px;
+    }
+    
+    .quick-facts-card h3 {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        color: var(--text-dark);
+    }
+    
+    .fact-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .fact-item:last-child {
+        border-bottom: none;
+    }
+    
+    .fact-icon {
+        width: 20px;
+        height: 20px;
+        color: var(--primary-blue);
+        flex-shrink: 0;
+    }
+    
+    .fact-label {
+        font-size: 14px;
+        color: var(--text-gray);
+        flex: 1;
+    }
+    
+    .fact-value {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-dark);
+    }
+    
+    /* Action Buttons */
+    .action-buttons-card {
+        background: var(--bg-white);
+        border-radius: 12px;
+        padding: 24px;
+        border: 1px solid var(--border-color);
+        margin-bottom: 16px;
+    }
+    
+    .action-buttons-card .btn {
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+    
+    .action-buttons-card .btn:last-child {
+        margin-bottom: 0;
+    }
+    
+    .btn-outline {
+        background: white;
+        border: 1px solid var(--border-color);
+        color: var(--text-dark);
+    }
+    
+    .btn-outline:hover {
+        background: var(--bg-gray-light);
+        border-color: var(--text-gray);
+    }
+    
+    /* Similar Grants */
+    .similar-grants-section {
+        margin-top: 48px;
+        padding-top: 32px;
+        border-top: 1px solid var(--border-color);
+    }
+    
+    .similar-grants-section h2 {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 24px;
+        color: var(--text-dark);
+    }
+    
+    .similar-grants-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+    }
+    
+    .similar-grant-card {
+        background: var(--bg-white);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 20px;
+        transition: all 0.2s;
+    }
+    
+    .similar-grant-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+    }
+    
+    .similar-grant-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    
+    .similar-grant-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        background: var(--primary-blue);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+    
+    .similar-grant-info {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .similar-grant-info h3 {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: var(--text-dark);
+    }
+    
+    .similar-grant-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 13px;
+        color: var(--text-gray);
+    }
+    
+    .match-badge-small {
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+        color: white;
+        background: var(--secondary-green);
+    }
+    
+    /* Responsive */
+    @media (max-width: 1024px) {
+        .grant-detail-content {
+            grid-template-columns: 1fr;
+        }
+        
+        .match-analysis-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background: var(--bg-white);
+        border-radius: 12px;
+        width: 90%;
+        max-width: 600px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: var(--shadow-lg);
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 24px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .modal-header h2 {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin: 0;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 28px;
+        color: var(--text-gray);
+        cursor: pointer;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+
+    .modal-close:hover {
+        background: var(--bg-gray-light);
+        color: var(--text-dark);
+    }
+
+    .modal-body {
+        padding: 24px;
+    }
+
+    .modal-subtitle {
+        color: var(--text-gray);
+        margin-bottom: 24px;
+        font-size: 14px;
+    }
+
+    .application-options {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .application-option {
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        padding: 20px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        gap: 16px;
+        align-items: flex-start;
+    }
+
+    .application-option:hover {
+        border-color: var(--primary-blue);
+        background: var(--bg-gray-light);
+    }
+
+    .application-option.selected {
+        border-color: var(--primary-blue);
+        background: #EFF6FF;
+    }
+
+    .option-icon {
+        color: var(--primary-blue);
+        flex-shrink: 0;
+    }
+
+    .option-content {
+        flex: 1;
+    }
+
+    .option-content h3 {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin-bottom: 8px;
+    }
+
+    .option-content p {
+        font-size: 14px;
+        color: var(--text-gray);
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    .modal-footer {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        padding: 24px;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .modal-footer .btn {
+        min-width: 120px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="grant-detail-page">
+    <!-- Back Link -->
+    <a href="{% url 'grants:dashboard' %}" class="back-link">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10 12L6 8L10 4"/>
+        </svg>
+        Back to Dashboard
+    </a>
+    
     <!-- Grant Header -->
     <div class="grant-detail-header">
         <div class="grant-header-left">
-            <div class="grant-icon-large">
-                {% if grant.icon_name %}
-                    <span class="icon-{{ grant.icon_name }}">{{ grant.agency.acronym|slice:":1" }}</span>
+            <div class="grant-header-logo">
+                {% with agency_lower=grant.agency.acronym|lower %}
+                <!-- Show fallback by default, hide if image loads successfully -->
+                <div class="grant-header-logo-fallback {{ agency_lower }}" style="display: flex;">
+                    {{ grant.agency.acronym|slice:":2"|upper }}
+                </div>
+                {% if grant.agency.logo_url %}
+                    {% with logo_path=grant.agency.logo_url %}
+                    {% if "/static/" in logo_path or "http://" in logo_path or "https://" in logo_path %}
+                        <!-- Use URL directly -->
+                        <img src="{{ logo_path }}" alt="{{ grant.agency.acronym }}" 
+                             onload="this.previousElementSibling.style.display='none'; this.style.display='block';"
+                             onerror="this.style.display='none'; this.previousElementSibling.style.display='flex';"
+                             style="display: none;">
+                    {% endif %}
+                    {% endwith %}
                 {% else %}
-                    <span class="grant-icon-default">{{ grant.agency.acronym|slice:":1" }}</span>
+                    <!-- Try default static file paths with multiple extensions (PNG first) -->
+                    <img src="{% static 'agency-logos/' %}{{ agency_lower }}.png" alt="{{ grant.agency.acronym }}"
+                         onload="this.previousElementSibling.style.display='none'; this.style.display='block';"
+                         onerror="tryNextFormat(this, '{{ agency_lower }}')"
+                         style="display: none;">
                 {% endif %}
+                {% endwith %}
             </div>
             <div class="grant-header-info">
                 <div class="grant-agency-badge">{{ grant.agency.acronym }}</div>
@@ -28,22 +708,27 @@
         </div>
         <div class="grant-header-right">
             {% if match_score %}
-            <div class="match-badge-large match-badge-high">{{ match_score }}% Match</div>
+            <div class="match-badge-large">{{ match_score }}% Match</div>
             {% endif %}
         </div>
     </div>
 
-    <!-- Match Analysis Section -->
+    <!-- Match Analysis Section - Only show if there's an actual match -->
     {% if match_score > 0 %}
     <div class="match-analysis-section">
         <div class="match-analysis-grid">
             <!-- Why This Grant Matches -->
             <div class="match-box match-box-positive">
-                <h3>Why This Grant Matches</h3>
+                <h3>
+                    <svg class="match-box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+                    </svg>
+                    Why This Grant Matches
+                </h3>
                 <ul class="match-reasons-list">
                     {% for reason in match_reasons %}
                     <li>
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
                             <circle cx="10" cy="10" r="8" fill="currentColor"/>
                             <path d="M6 10L9 13L14 7" stroke="white" stroke-width="2" stroke-linecap="round"/>
                         </svg>
@@ -51,25 +736,11 @@
                     </li>
                     {% empty %}
                     <li>
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
                             <circle cx="10" cy="10" r="8" fill="currentColor"/>
                             <path d="M6 10L9 13L14 7" stroke="white" stroke-width="2" stroke-linecap="round"/>
                         </svg>
-                        Strong alignment with your project focus areas
-                    </li>
-                    <li>
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                            <circle cx="10" cy="10" r="8" fill="currentColor"/>
-                            <path d="M6 10L9 13L14 7" stroke="white" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                        Budget range matches your requirements
-                    </li>
-                    <li>
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                            <circle cx="10" cy="10" r="8" fill="currentColor"/>
-                            <path d="M6 10L9 13L14 7" stroke="white" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                        Eligibility criteria fully met
+                        Strong alignment with project objectives
                     </li>
                     {% endfor %}
                 </ul>
@@ -77,23 +748,28 @@
 
             <!-- Why It May Not Match -->
             <div class="match-box match-box-warning">
-                <h3>Why It May Not Match</h3>
+                <h3>
+                    <svg class="match-box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 9V13M12 17H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"/>
+                    </svg>
+                    Why It May Not Match
+                </h3>
                 <ul class="match-reasons-list">
                     {% for reason in negative_reasons %}
                     <li>
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                            <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="2" fill="none"/>
-                            <path d="M7 7L13 13M13 7L7 13" stroke="currentColor" stroke-width="2"/>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="10" cy="10" r="8"/>
+                            <path d="M7 7L13 13M13 7L7 13"/>
                         </svg>
                         {{ reason }}
                     </li>
                     {% empty %}
                     <li>
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                            <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="2" fill="none"/>
-                            <path d="M7 7L13 13M13 7L7 13" stroke="currentColor" stroke-width="2"/>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="10" cy="10" r="8"/>
+                            <path d="M7 7L13 13M13 7L7 13"/>
                         </svg>
-                        Review specific eligibility requirements carefully
+                        Review eligibility requirements carefully
                     </li>
                     {% endfor %}
                 </ul>
@@ -117,8 +793,8 @@
             <div class="tab-content">
                 <!-- About Tab -->
                 <div id="tab-about" class="tab-pane active">
-                    <div class="detail-section">
-                        <h2>About this Grant</h2>
+                    <div class="tab-pane-content">
+                        <h2>About this grant</h2>
                         {% if live_data.about_grant %}
                         <div class="grant-description">
                             {{ live_data.about_grant|linebreaks }}
@@ -132,21 +808,18 @@
                             <p>{{ grant.description }}</p>
                         </div>
                         {% endif %}
-                    </div>
-                    {% if live_data.focus_area or grant.focus_area %}
-                    <div class="detail-section">
-                        <h2>Focus Area</h2>
-                        <div class="focus-tags">
+                        {% if live_data.focus_area or grant.focus_area %}
+                        <div class="focus-tags" style="margin-top: 20px;">
                             <span class="tag tag-purple">{{ live_data.focus_area|default:grant.focus_area }}</span>
                         </div>
+                        {% endif %}
                     </div>
-                    {% endif %}
                 </div>
 
                 <!-- Who Can Apply Tab -->
                 <div id="tab-who" class="tab-pane">
-                    <div class="detail-section">
-                        <h2>Who Can Apply</h2>
+                    <div class="tab-pane-content">
+                        <h2>Who can apply?</h2>
                         {% if live_data.who_can_apply %}
                         <div class="eligibility-content">
                             {{ live_data.who_can_apply|linebreaks }}
@@ -163,7 +836,7 @@
                         <p>Please check the official grant page for detailed eligibility criteria.</p>
                         {% endif %}
                         {% if live_data.applicable_to %}
-                        <div class="applicable-to">
+                        <div class="applicable-to" style="margin-top: 20px;">
                             <h3>Applicable To:</h3>
                             <ul>
                                 {% for applicant_type in live_data.applicable_to %}
@@ -172,30 +845,35 @@
                             </ul>
                         </div>
                         {% endif %}
+                        {% if grant.application_url or live_data.application_url %}
+                        <a href="{{ live_data.application_url|default:grant.application_url }}" target="_blank" class="info-link" style="margin-top: 16px; display: inline-block;">
+                            View grant guidelines →
+                        </a>
+                        {% endif %}
                     </div>
                 </div>
 
                 <!-- When to Apply Tab -->
                 <div id="tab-when" class="tab-pane">
-                    <div class="detail-section">
-                        <h2>When to Apply</h2>
+                    <div class="tab-pane-content">
+                        <h2>When can I apply?</h2>
                         {% if live_data.when_to_apply %}
                         <div class="when-to-apply-content">
                             {{ live_data.when_to_apply|linebreaks }}
                         </div>
                         {% endif %}
-                        <div class="timeline-info">
+                        <div class="timeline-info" style="margin-top: 20px;">
                             {% if grant.opening_date %}
-                            <div class="timeline-item">
+                            <div class="timeline-item" style="margin-bottom: 12px;">
                                 <strong>Opening Date:</strong> {{ grant.opening_date|date:"d M Y" }}
                             </div>
                             {% endif %}
-                            <div class="timeline-item">
+                            <div class="timeline-item" style="margin-bottom: 12px;">
                                 <strong>Closing Date:</strong> 
                                 {% if grant.closing_date %}
                                     {{ grant.closing_date|date:"d M Y" }}
                                     {% if grant.days_until_deadline %}
-                                        <span class="days-remaining">({{ grant.days_until_deadline }} days remaining)</span>
+                                        <span class="days-remaining" style="color: var(--accent-orange);">({{ grant.days_until_deadline }} days remaining)</span>
                                     {% endif %}
                                 {% else %}
                                     {{ live_data.closing_date_text|default:"Open for Applications" }}
@@ -212,8 +890,8 @@
 
                 <!-- Funding Tab -->
                 <div id="tab-funding" class="tab-pane">
-                    <div class="detail-section">
-                        <h2>How Much Funding Can You Receive</h2>
+                    <div class="tab-pane-content">
+                        <h2>How much funding can you receive?</h2>
                         {% if live_data.funding_info %}
                         <div class="funding-info-content">
                             {{ live_data.funding_info|linebreaks }}
@@ -223,12 +901,12 @@
                             {{ live_data.funding_details|linebreaks }}
                         </div>
                         {% endif %}
-                        <div class="funding-info">
-                            <div class="funding-amount-large">
+                        <div class="funding-info" style="margin-top: 20px;">
+                            <div class="funding-amount-large" style="font-size: 24px; font-weight: 700; color: var(--primary-blue); margin-bottom: 8px;">
                                 {{ grant.funding_range }}
                             </div>
                             {% if live_data.grant_amount_text %}
-                            <p>{{ live_data.grant_amount_text }}</p>
+                            <p style="color: var(--text-gray);">{{ live_data.grant_amount_text }}</p>
                             {% endif %}
                         </div>
                     </div>
@@ -236,8 +914,8 @@
 
                 <!-- How to Apply Tab -->
                 <div id="tab-how" class="tab-pane">
-                    <div class="detail-section">
-                        <h2>How to Apply</h2>
+                    <div class="tab-pane-content">
+                        <h2>How to apply?</h2>
                         {% if live_data.how_to_apply %}
                         <div class="how-to-apply-content">
                             {{ live_data.how_to_apply|linebreaks }}
@@ -245,19 +923,48 @@
                         {% else %}
                         <p>Please visit the official grant page for detailed application instructions.</p>
                         {% endif %}
-                        {% if live_data.required_documents %}
-                        <div class="required-documents">
-                            <h3>Required Documents</h3>
+                        
+                        <!-- Documents Required Section -->
+                        {% if live_data.document_links or live_data.required_documents %}
+                        <div class="documents-section">
+                            <div class="documents-header">
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M4 4H16V16H4V4Z"/>
+                                    <path d="M9 8H11M9 11H11M9 14H11"/>
+                                </svg>
+                                <h3>DOCUMENTS REQUIRED FOR APPLICATION</h3>
+                            </div>
+                            <p style="margin-bottom: 16px; color: var(--text-gray);">Complete the following documents and upload them to the relevant sections of the form before you submit your application:</p>
+                            
+                            {% if live_data.document_links %}
+                            <ul class="document-list">
+                                {% for doc in live_data.document_links %}
+                                <li class="document-item">
+                                    <a href="{{ doc.url }}" target="_blank" download>
+                                        <div class="document-icon">
+                                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M4 4H16V16H4V4Z"/>
+                                                <path d="M8 8H12M8 11H12M8 14H10"/>
+                                            </svg>
+                                        </div>
+                                        <div class="document-info">
+                                            <div class="document-name">{{ doc.name }}</div>
+                                            {% if doc.size %}
+                                            <div class="document-size">{{ doc.size }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M6 4H10V8H14V12H10V16H6V12H2V8H6V4Z"/>
+                                        </svg>
+                                    </a>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% elif live_data.required_documents %}
                             <div class="documents-content">
                                 {{ live_data.required_documents|linebreaks }}
                             </div>
-                        </div>
-                        {% endif %}
-                        {% if grant.application_url or live_data.application_url %}
-                        <div class="apply-actions">
-                            <a href="{{ live_data.application_url|default:grant.application_url }}" target="_blank" class="btn btn-primary">
-                                Start Application
-                            </a>
+                            {% endif %}
                         </div>
                         {% endif %}
                     </div>
@@ -267,13 +974,22 @@
 
         <!-- Sidebar -->
         <div class="grant-detail-sidebar">
+            <!-- Quick Facts Card -->
             <div class="quick-facts-card">
                 <h3>Quick Facts</h3>
                 <div class="fact-item">
+                    <svg class="fact-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10 2L3 6V14L10 18L17 14V6L10 2Z"/>
+                        <path d="M10 10V18M3 6L10 10L17 6"/>
+                    </svg>
                     <span class="fact-label">Funding Amount</span>
                     <span class="fact-value">{{ grant.funding_range }}</span>
                 </div>
                 <div class="fact-item">
+                    <svg class="fact-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="4" width="14" height="12" rx="1"/>
+                        <path d="M7 2V6M13 2V6M3 9H17"/>
+                    </svg>
                     <span class="fact-label">Deadline</span>
                     <span class="fact-value">
                         {% if grant.closing_date %}
@@ -285,16 +1001,28 @@
                 </div>
                 {% if grant.duration_years %}
                 <div class="fact-item">
+                    <svg class="fact-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="10" cy="10" r="8"/>
+                        <path d="M10 6V10L13 13"/>
+                    </svg>
                     <span class="fact-label">Duration</span>
                     <span class="fact-value">{{ grant.duration_years }}</span>
                 </div>
                 {% endif %}
                 <div class="fact-item">
+                    <svg class="fact-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 7L10 3L17 7V15C17 16.1046 16.1046 17 15 17H5C3.89543 17 3 16.1046 3 15V7Z"/>
+                        <path d="M7 10H13M10 7V13"/>
+                    </svg>
                     <span class="fact-label">Agency</span>
                     <span class="fact-value">{{ grant.agency.acronym }}</span>
                 </div>
                 {% if live_data.focus_area or grant.focus_area %}
                 <div class="fact-item">
+                    <svg class="fact-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="10" cy="10" r="8"/>
+                        <path d="M10 6L10 14M6 10L14 10"/>
+                    </svg>
                     <span class="fact-label">Focus Area</span>
                     <span class="fact-value">{{ live_data.focus_area|default:grant.focus_area }}</span>
                 </div>
@@ -304,7 +1032,7 @@
             <!-- Action Buttons -->
             <div class="action-buttons-card">
                 {% if existing_application %}
-                    <a href="{% url 'grants:applications' %}" class="btn btn-primary btn-block" style="margin-bottom: 12px;">
+                    <a href="{% url 'grants:applications' %}" class="btn btn-primary btn-block">
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M4 4H16V16H4V4Z"/>
                             <path d="M7 8H13M7 11H13M7 14H10"/>
@@ -312,18 +1040,89 @@
                         View Application ({{ existing_application.get_status_display }})
                     </a>
                 {% else %}
-                    <form method="post" action="{% url 'grants:start_application' grant.id %}" style="margin-bottom: 12px;">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-primary btn-block">
-                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M10 3L3 7V13L10 17L17 13V7L10 3Z"/>
-                                <path d="M10 10V17M3 7L10 10L17 7"/>
-                            </svg>
-                            Start Application
-                        </button>
-                    </form>
+{# --- Start Application (opens modal) --- #}
+<button
+  type="button"
+  class="btn btn-primary btn-block"
+  onclick="openStartApplicationModal()"
+>
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor">
+    <path d="M10 3L3 7V13L10 17L17 13V7L10 3Z"></path>
+    <path d="M10 10V17M3 7L10 10L17 7"></path>
+  </svg>
+  Start Application
+</button>
+
+{# --- Modal --- #}
+<div id="startApplicationModal" class="modal-backdrop" style="display:none;">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="startAppTitle">
+    <button type="button" class="modal-close" aria-label="Close"
+            onclick="closeStartApplicationModal()">×</button>
+
+    <h3 id="startAppTitle" class="modal-title">Start Your Application</h3>
+    <p class="modal-subtitle">
+      Choose how you'd like to proceed with your grant application
+    </p>
+
+    <div class="modal-options">
+      {# 1) Recommended Proposal – internal AI editor #}
+      <a
+        class="modal-option modal-option--primary"
+        href="{% url 'grants:start_application' grant.id %}"
+      >
+        <div class="modal-icon">📄</div>
+        <div>
+          <div class="modal-option-title">Recommended Proposal</div>
+          <div class="modal-option-desc">
+            Use our AI-generated proposal template tailored to this grant.
+            Edit and customize before submitting.
+          </div>
+        </div>
+      </a>
+
+      {# 2) Application Portal – external OurSG Grants link #}
+      <a
+        class="modal-option"
+        href="{{ grant.application_url }}"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <div class="modal-icon">↗</div>
+        <div>
+          <div class="modal-option-title">Application Portal</div>
+          <div class="modal-option-desc">
+            Go to the official OurSG Grants portal to apply as an organisation
+            or individual.
+          </div>
+        </div>
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openStartApplicationModal() {
+    document.getElementById("startApplicationModal").style.display = "block";
+  }
+
+  function closeStartApplicationModal() {
+    document.getElementById("startApplicationModal").style.display = "none";
+  }
+
+  document.addEventListener("click", function (e) {
+    const backdrop = document.getElementById("startApplicationModal");
+    if (!backdrop || backdrop.style.display !== "block") return;
+
+    if (e.target === backdrop) closeStartApplicationModal();
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeStartApplicationModal();
+  });
+</script>
+
                 {% endif %}
-                <button class="btn btn-secondary btn-block" onclick="toggleSave({{ grant.id }})">
+                <button class="btn btn-outline btn-block" onclick="toggleSave({{ grant.id }})">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="{% if is_saved %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2">
                         <path d="M10 15L5 10L6.5 8.5L10 12L13.5 8.5L15 10L10 15Z"/>
                     </svg>
@@ -347,49 +1146,88 @@
         <h2>Similar Grants</h2>
         <div class="similar-grants-grid">
             {% for similar in similar_grants %}
-            <div class="similar-grant-card">
-                <div class="similar-grant-header">
-                    <div class="similar-grant-icon">
-                        <span class="grant-icon-default">{{ similar.agency.acronym|slice:":1" }}</span>
-                    </div>
-                    <div class="similar-grant-info">
-                        <h3>{{ similar.title }}</h3>
-                        <div class="similar-grant-meta">
-                            <span>{{ similar.funding_range }}</span>
-                            <span>{{ similar.closing_date|date:"d M Y"|default:"TBA" }}</span>
+            <a href="{% url 'grants:grant_detail' similar.id %}" style="text-decoration: none; color: inherit;">
+                <div class="similar-grant-card">
+                    <div class="similar-grant-header">
+                        <div class="similar-grant-icon">
+                            {{ similar.agency.acronym|slice:":1" }}
                         </div>
+                        <div class="similar-grant-info">
+                            <h3>{{ similar.title }}</h3>
+                            <div class="similar-grant-meta">
+                                <span>{{ similar.funding_range }}</span>
+                                <span>{{ similar.closing_date|date:"d M Y"|default:"TBA" }}</span>
+                            </div>
+                        </div>
+                        {% if similar.user_match_score %}
+                        <div class="match-badge-small">{{ similar.user_match_score }}%</div>
+                        {% elif similar.match_score %}
+                        <div class="match-badge-small">{{ similar.match_score }}%</div>
+                        {% endif %}
                     </div>
-                    {% if similar.match_score %}
-                    <div class="match-badge match-badge-small">{{ similar.match_score }}%</div>
-                    {% endif %}
                 </div>
-                <a href="{% url 'grants:grant_detail' similar.id %}" class="btn btn-outline btn-sm">View Details</a>
-            </div>
+            </a>
             {% endfor %}
         </div>
     </div>
     {% endif %}
+
+    <!-- Start Application Modal -->
+    <div id="startApplicationModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Start Your Application</h2>
+                <button class="modal-close" onclick="closeStartApplicationModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-subtitle">Choose how you'd like to proceed with your grant application.</p>
+                <div class="application-options">
+                    <div class="application-option" onclick="selectApplicationOption('recommended')">
+                        <div class="option-icon">
+                            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                                <rect x="6" y="6" width="20" height="20" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
+                                <path d="M10 12H22M10 16H22M10 20H16" stroke="currentColor" stroke-width="2"/>
+                                <circle cx="24" cy="8" r="4" fill="currentColor"/>
+                            </svg>
+                        </div>
+                        <div class="option-content">
+                            <h3>Recommended Proposal</h3>
+                            <p>Use our AI-generated proposal template tailored to this grant. Edit and customize before submitting.</p>
+                        </div>
+                    </div>
+                    <div class="application-option" onclick="selectApplicationOption('portal')">
+                        <div class="option-icon">
+                            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                                <rect x="6" y="6" width="20" height="20" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
+                                <path d="M16 10V22M10 16H22" stroke="currentColor" stroke-width="2"/>
+                                <path d="M20 8L24 12L20 16M12 8L8 12L12 16" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                        </div>
+                        <div class="option-content">
+                            <h3>Application Portal</h3>
+                            <p>Go directly to the application tracking page to manage your submission.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <form method="post" action="{% url 'grants:start_application_recommended' grant.id %}" id="recommendedForm" style="display: none;">
+                    {% csrf_token %}
+                </form>
+                <button type="button" class="btn btn-primary" onclick="submitApplication()" id="startApplicationBtn" disabled>
+                    Start Application
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="closeStartApplicationModal()">
+                    Save Grant
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Set up tab button click handlers
-    document.querySelectorAll('.tab-button').forEach(button => {
-        button.addEventListener('click', function() {
-            const tabName = this.textContent.trim().toLowerCase()
-                .replace('about this grant', 'about')
-                .replace('who can apply', 'who')
-                .replace('when to apply', 'when')
-                .replace('how much funding can you receive?', 'funding')
-                .replace('how to apply', 'how');
-            
-            showTab(tabName);
-        });
-    });
-});
-
 function showTab(tabName) {
     // Hide all tab panes
     document.querySelectorAll('.tab-pane').forEach(pane => {
@@ -413,6 +1251,22 @@ function showTab(tabName) {
     }
 }
 
+// Set up tab button click handlers
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.addEventListener('click', function() {
+            const tabName = this.textContent.trim().toLowerCase()
+                .replace('about this grant', 'about')
+                .replace('who can apply', 'who')
+                .replace('when to apply', 'when')
+                .replace('how much funding can you receive?', 'funding')
+                .replace('how to apply', 'how');
+            
+            showTab(tabName);
+        });
+    });
+});
+
 function toggleSave(grantId) {
     fetch(`/grants/${grantId}/save/`, {
         method: 'POST',
@@ -423,5 +1277,52 @@ function toggleSave(grantId) {
         location.reload();
     });
 }
+
+let selectedOption = null;
+
+function openStartApplicationModal() {
+    document.getElementById('startApplicationModal').style.display = 'flex';
+    selectedOption = null;
+    document.getElementById('startApplicationBtn').disabled = true;
+    document.querySelectorAll('.application-option').forEach(opt => opt.classList.remove('selected'));
+}
+
+function closeStartApplicationModal() {
+    document.getElementById('startApplicationModal').style.display = 'none';
+    selectedOption = null;
+}
+
+function selectApplicationOption(option) {
+    selectedOption = option;
+    document.querySelectorAll('.application-option').forEach(opt => opt.classList.remove('selected'));
+    event.currentTarget.classList.add('selected');
+    document.getElementById('startApplicationBtn').disabled = false;
+}
+
+function submitApplication() {
+    if (selectedOption === 'recommended') {
+        document.getElementById('recommendedForm').submit();
+    } else if (selectedOption === 'portal') {
+        {% if grant.application_url or live_data.application_url %}
+        window.open('{{ live_data.application_url|default:grant.application_url }}', '_blank');
+        {% endif %}
+        // Also create application in system
+        fetch('{% url "grants:start_application" grant.id %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+        }).then(() => {
+            window.location.href = '{% url "grants:applications" %}';
+        });
+    }
+}
+
+// Close modal when clicking outside
+document.getElementById('startApplicationModal')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeStartApplicationModal();
+    }
+});
 </script>
 {% endblock %}

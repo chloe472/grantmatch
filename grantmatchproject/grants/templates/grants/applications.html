@@ -279,7 +279,16 @@
                 {% for application in status_groups.in_progress %}
                 <div class="application-card" draggable="true" ondragstart="handleDragStart(event)" data-application-id="{{ application.id }}">
                     <div class="application-card-header">
-                        <div class="application-icon">{{ application.grant.agency.acronym|slice:":3"|upper }}</div>
+                        {% with agency_lower=application.grant.agency.acronym|lower %}
+                        <div class="application-icon" style="position: relative; overflow: hidden;">
+                            <span style="display: flex;">{{ application.grant.agency.acronym|slice:":3"|upper }}</span>
+                            <img src="{% static 'agency-logos/' %}{{ agency_lower }}.png"
+                                 alt="{{ application.grant.agency.name }}"
+                                 style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; display: none; border-radius: 6px;"
+                                 onload="this.style.display='block'; this.previousElementSibling.style.display='none';"
+                                 onerror="tryNextFormat(this, '{{ agency_lower }}')">
+                        </div>
+                        {% endwith %}
                         <div class="application-info">
                             <div class="application-title">{{ application.grant.title }}</div>
                         </div>
@@ -328,7 +337,16 @@
                 {% for application in status_groups.submitted %}
                 <div class="application-card" draggable="true" ondragstart="handleDragStart(event)" data-application-id="{{ application.id }}">
                     <div class="application-card-header">
-                        <div class="application-icon">{{ application.grant.agency.acronym|slice:":3"|upper }}</div>
+                        {% with agency_lower=application.grant.agency.acronym|lower %}
+                        <div class="application-icon" style="position: relative; overflow: hidden;">
+                            <span style="display: flex;">{{ application.grant.agency.acronym|slice:":3"|upper }}</span>
+                            <img src="{% static 'agency-logos/' %}{{ agency_lower }}.png"
+                                 alt="{{ application.grant.agency.name }}"
+                                 style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; display: none; border-radius: 6px;"
+                                 onload="this.style.display='block'; this.previousElementSibling.style.display='none';"
+                                 onerror="tryNextFormat(this, '{{ agency_lower }}')">
+                        </div>
+                        {% endwith %}
                         <div class="application-info">
                             <div class="application-title">{{ application.grant.title }}</div>
                         </div>
@@ -377,7 +395,16 @@
                 {% for application in status_groups.approved %}
                 <div class="application-card" draggable="true" ondragstart="handleDragStart(event)" data-application-id="{{ application.id }}">
                     <div class="application-card-header">
-                        <div class="application-icon">{{ application.grant.agency.acronym|slice:":3"|upper }}</div>
+                        {% with agency_lower=application.grant.agency.acronym|lower %}
+                        <div class="application-icon" style="position: relative; overflow: hidden;">
+                            <span style="display: flex;">{{ application.grant.agency.acronym|slice:":3"|upper }}</span>
+                            <img src="{% static 'agency-logos/' %}{{ agency_lower }}.png"
+                                 alt="{{ application.grant.agency.name }}"
+                                 style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; display: none; border-radius: 6px;"
+                                 onload="this.style.display='block'; this.previousElementSibling.style.display='none';"
+                                 onerror="tryNextFormat(this, '{{ agency_lower }}')">
+                        </div>
+                        {% endwith %}
                         <div class="application-info">
                             <div class="application-title">{{ application.grant.title }}</div>
                         </div>
@@ -420,7 +447,16 @@
                 {% for application in status_groups.rejected %}
                 <div class="application-card" draggable="true" ondragstart="handleDragStart(event)" data-application-id="{{ application.id }}">
                     <div class="application-card-header">
-                        <div class="application-icon">{{ application.grant.agency.acronym|slice:":3"|upper }}</div>
+                        {% with agency_lower=application.grant.agency.acronym|lower %}
+                        <div class="application-icon" style="position: relative; overflow: hidden;">
+                            <span style="display: flex;">{{ application.grant.agency.acronym|slice:":3"|upper }}</span>
+                            <img src="{% static 'agency-logos/' %}{{ agency_lower }}.png"
+                                 alt="{{ application.grant.agency.name }}"
+                                 style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; display: none; border-radius: 6px;"
+                                 onload="this.style.display='block'; this.previousElementSibling.style.display='none';"
+                                 onerror="tryNextFormat(this, '{{ agency_lower }}')">
+                        </div>
+                        {% endwith %}
                         <div class="application-info">
                             <div class="application-title">{{ application.grant.title }}</div>
                         </div>

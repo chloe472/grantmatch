@@ -1,0 +1,566 @@
+{% extends "grants/base.html" %}
+
+{% block title %}Project Proposal Template{% endblock %}
+
+{% block content %}
+<div class="proposal-container">
+    <div class="proposal-header">
+        <a href="{% url 'grants:grant_detail' grant.id %}" class="back-link">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M15 10H5M5 10L10 15M5 10L10 5"/>
+            </svg>
+            Back to Grant
+        </a>
+        <h1 class="page-title">Project Proposal Template</h1>
+    </div>
+
+    <form id="proposalForm" method="post" action="{% url 'grants:proposal_template' application.id %}">
+        {% csrf_token %}
+        
+        <!-- Editable Title -->
+        <div class="proposal-title-section">
+            <input type="text" 
+                   name="proposal_title" 
+                   id="proposalTitle" 
+                   class="proposal-title-input" 
+                   value="{{ application.proposal_title }}" 
+                   placeholder="Project Proposal Template">
+        </div>
+
+        <!-- Section 1: Community Needs Analysis -->
+        <div class="proposal-section">
+            <h2 class="section-title">1. Community Needs Analysis</h2>
+            <p class="section-description">Describe briefly the current social/community needs that you have identified for your project.</p>
+            <textarea name="community_needs_analysis" 
+                      class="section-textarea" 
+                      placeholder="Enter the community needs analysis..."
+                      rows="6">{{ application.community_needs_analysis }}</textarea>
+        </div>
+
+        <!-- Section 2: Project Objective -->
+        <div class="proposal-section">
+            <h2 class="section-title">2. Project Objective</h2>
+            <p class="section-description">Please detail the objective(s) of the community project. Ensure they are in line with the needs that you have identified in section 1.</p>
+            <textarea name="project_objective" 
+                      class="section-textarea" 
+                      placeholder="Enter the project objectives..."
+                      rows="6">{{ application.project_objective }}</textarea>
+        </div>
+
+        <!-- Section 3: Project Uniqueness -->
+        <div class="proposal-section">
+            <h2 class="section-title">3. Project Uniqueness</h2>
+            <p class="section-description">Highlight how your project is different from other existing projects or collaborations, and/or how it can complement existing projects. Do include the strengths of your project as compared to other similar projects.</p>
+            <textarea name="project_uniqueness" 
+                      class="section-textarea" 
+                      placeholder="Enter what makes your project unique..."
+                      rows="6">{{ application.project_uniqueness }}</textarea>
+        </div>
+
+        <!-- Section 4: Description of Project -->
+        <div class="proposal-section">
+            <h2 class="section-title">4. Description of Project</h2>
+            <p class="section-description">Please detail how you plan to achieve your objectives mentioned in section 2. Include date, venue, activities and timeline for actual event day and outreach (i.e, number of volunteers/participants etc).</p>
+            <textarea name="description_of_project" 
+                      class="section-textarea" 
+                      placeholder="Enter the project description..."
+                      rows="8">{{ application.description_of_project }}</textarea>
+        </div>
+
+        <!-- Section 5: Project Publicity -->
+        <div class="proposal-section">
+            <h2 class="section-title">5. Project Publicity</h2>
+            <p class="section-description">Please detail your project publicity including marketing channels and media plan (if applicable).</p>
+            <textarea name="project_publicity" 
+                      class="section-textarea" 
+                      placeholder="Enter your publicity and marketing plan..."
+                      rows="6">{{ application.project_publicity }}</textarea>
+        </div>
+
+        <!-- Section 6: Project Considerations -->
+        <div class="proposal-section">
+            <h2 class="section-title">6. Project Considerations</h2>
+            <p class="section-description">What are the risks or challenges you might face with the project and how will you address them? Please include risk assessments as well for the activities.</p>
+            <textarea name="project_considerations" 
+                      class="section-textarea" 
+                      placeholder="Enter risks, challenges, and mitigation strategies..."
+                      rows="6">{{ application.project_considerations }}</textarea>
+        </div>
+
+        <!-- Section 7: Project Evaluation -->
+        <div class="proposal-section">
+            <h2 class="section-title">7. Project Evaluation</h2>
+            <p class="section-description">Please detail the key indicators of success for your project and how will you evaluate them.</p>
+            <textarea name="project_evaluation" 
+                      class="section-textarea" 
+                      placeholder="Enter your evaluation metrics and success indicators..."
+                      rows="6">{{ application.project_evaluation }}</textarea>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="proposal-footer">
+            <div class="last-saved">
+                {% if application.last_saved %}
+                    Last saved: <span id="lastSavedTime">{{ application.last_saved|date:"d b Y, g:i A" }}</span>
+                {% else %}
+                    Not saved yet
+                {% endif %}
+            </div>
+            <div class="button-group">
+                <button type="button" class="btn btn-secondary" onclick="downloadProposal()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Download
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveDraft()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                        <polyline points="17 21 17 13 7 13 7 21"/>
+                        <polyline points="7 3 7 8 15 8"/>
+                    </svg>
+                    Save Draft
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .proposal-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 24px;
+    }
+
+    .proposal-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 32px;
+    }
+
+    .back-link {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--primary-blue);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s;
+        padding: 8px 12px;
+        border-radius: 6px;
+    }
+
+    .back-link:hover {
+        background: var(--bg-gray-light);
+        color: var(--primary-blue-dark);
+    }
+
+    .page-title {
+        font-size: 28px;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin: 0;
+        flex: 1;
+    }
+
+    .proposal-title-section {
+        margin-bottom: 32px;
+        padding-bottom: 24px;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .proposal-title-input {
+        font-size: 24px;
+        font-weight: 600;
+        width: 100%;
+        border: none;
+        border-bottom: 2px solid transparent;
+        padding: 8px 0;
+        color: var(--text-dark);
+        background: transparent;
+        transition: all 0.2s;
+        font-family: inherit;
+    }
+
+    .proposal-title-input:focus {
+        outline: none;
+        border-bottom-color: var(--primary-blue);
+        background: var(--bg-gray-light);
+        border-radius: 4px;
+        padding: 8px 12px;
+    }
+
+    .proposal-section {
+        margin-bottom: 32px;
+    }
+
+    .section-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin: 0 0 8px 0;
+        line-height: 1.4;
+    }
+
+    .section-description {
+        font-size: 13px;
+        color: var(--text-gray);
+        margin: 0 0 16px 0;
+        line-height: 1.5;
+        font-weight: 400;
+    }
+
+    .section-textarea {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: 14px;
+        color: var(--text-dark);
+        line-height: 1.6;
+        resize: vertical;
+        transition: all 0.2s;
+        background: var(--bg-white);
+    }
+
+    .section-textarea:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .section-textarea::placeholder {
+        color: var(--text-gray-light);
+    }
+
+    .proposal-footer {
+        margin-top: 40px;
+        padding-top: 24px;
+        border-top: 2px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    .last-saved {
+        font-size: 13px;
+        color: var(--text-gray);
+    }
+
+    .last-saved span {
+        font-weight: 500;
+        color: var(--text-dark);
+    }
+
+    .button-group {
+        display: flex;
+        gap: 12px;
+    }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-primary {
+        background: var(--primary-blue);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: var(--primary-blue-dark);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .btn-primary:active {
+        transform: translateY(0);
+    }
+
+    .btn-secondary {
+        background: var(--bg-gray-light);
+        color: var(--text-dark);
+        border: 1px solid var(--border-color);
+    }
+
+    .btn-secondary:hover {
+        background: var(--bg-gray);
+        border-color: var(--text-gray);
+    }
+
+    /* Save notification */
+    .save-notification {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: #10B981;
+        color: white;
+        padding: 12px 16px;
+        border-radius: 6px;
+        font-size: 14px;
+        box-shadow: var(--shadow-lg);
+        animation: slideIn 0.3s ease-out;
+        z-index: 100;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateY(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    /* Loading spinner */
+    .spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .proposal-container {
+            padding: 16px;
+        }
+
+        .proposal-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .page-title {
+            font-size: 22px;
+        }
+
+        .proposal-footer {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .button-group {
+            flex-direction: column-reverse;
+        }
+
+        .btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .last-saved {
+            text-align: center;
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+function saveDraft() {
+    const form = document.getElementById('proposalForm');
+    const formData = new FormData(form);
+    formData.append('action', 'save_draft');
+
+    const saveBtn = event.target.closest('.btn');
+    const originalContent = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<span class="spinner"></span> Saving...';
+    saveBtn.disabled = true;
+
+    fetch('{% url "grants:proposal_template" application.id %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update last saved time
+            document.getElementById('lastSavedTime').textContent = data.last_saved;
+            
+            // Show notification
+            showNotification('Draft saved successfully');
+            
+            // Reset button
+            saveBtn.innerHTML = originalContent;
+            saveBtn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Error saving draft', 'error');
+        saveBtn.innerHTML = originalContent;
+        saveBtn.disabled = false;
+    });
+}
+
+function downloadProposal() {
+    const title = document.getElementById('proposalTitle').value || 'Project Proposal';
+    const form = document.getElementById('proposalForm');
+    
+    // Create HTML content for PDF
+    let htmlContent = `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <h1 style="text-align: center; font-size: 28px; margin-bottom: 30px; border-bottom: 2px solid #3b82f6; padding-bottom: 15px;">
+                ${escapeHtml(title)}
+            </h1>
+    `;
+    
+    const sections = [
+        {
+            name: '1. Community Needs Analysis',
+            value: form.community_needs_analysis.value
+        },
+        {
+            name: '2. Project Objective',
+            value: form.project_objective.value
+        },
+        {
+            name: '3. Project Uniqueness',
+            value: form.project_uniqueness.value
+        },
+        {
+            name: '4. Description of Project',
+            value: form.description_of_project.value
+        },
+        {
+            name: '5. Project Publicity',
+            value: form.project_publicity.value
+        },
+        {
+            name: '6. Project Considerations',
+            value: form.project_considerations.value
+        },
+        {
+            name: '7. Project Evaluation',
+            value: form.project_evaluation.value
+        }
+    ];
+
+    sections.forEach(section => {
+        if (section.value.trim()) {
+            htmlContent += `
+                <h2 style="font-size: 16px; font-weight: 600; margin-top: 20px; margin-bottom: 10px; color: #1f2937;">
+                    ${escapeHtml(section.name)}
+                </h2>
+                <p style="white-space: pre-wrap; margin-bottom: 20px; font-size: 11px; color: #666;">
+                    ${escapeHtml(section.value)}
+                </p>
+            `;
+        }
+    });
+
+    htmlContent += `
+            <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 10px; color: #999;">
+                <p>Generated on: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            </div>
+        </div>
+    `;
+
+    // PDF options
+    const options = {
+        margin: 15,
+        filename: `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_proposal.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
+    };
+
+    // Generate PDF
+    html2pdf().set(options).from(htmlContent).save();
+
+    showNotification('Proposal downloaded successfully');
+}
+
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+function showNotification(message, type = 'success') {
+    const notification = document.createElement('div');
+    notification.className = 'save-notification';
+    notification.textContent = message;
+    
+    if (type === 'error') {
+        notification.style.background = '#EF4444';
+    }
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease-in forwards';
+        setTimeout(() => {
+            document.body.removeChild(notification);
+        }, 300);
+    }, 3000);
+}
+
+// Add slideOut animation
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideOut {
+        from {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateY(100%);
+            opacity: 0;
+        }
+    }
+`;
+document.head.appendChild(style);
+
+// Auto-save on input (optional - saves every 30 seconds of inactivity)
+let autoSaveTimeout;
+const form = document.getElementById('proposalForm');
+if (form) {
+    form.addEventListener('input', () => {
+        clearTimeout(autoSaveTimeout);
+        autoSaveTimeout = setTimeout(() => {
+            // Optional: Uncomment to enable auto-save
+            // saveDraft();
+        }, 30000);
+    });
+}
+</script>
+{% endblock %}

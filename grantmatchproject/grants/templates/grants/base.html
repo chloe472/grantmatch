@@ -29,6 +29,15 @@
                     </svg>
                     <span>My Projects</span>
                 </a>
+                <a href="{% url 'grants:grants_list' %}" class="nav-item {% if request.resolver_match.url_name == 'grants_list' %}active{% endif %}">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <rect x="2" y="2" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <rect x="11" y="2" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <rect x="2" y="11" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <rect x="11" y="11" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" fill="none"/>
+                    </svg>
+                    <span>Browse All Grants</span>
+                </a>
                 <a href="{% url 'grants:saved_grants' %}" class="nav-item {% if request.resolver_match.url_name == 'saved_grants' %}active{% endif %}">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M10 2L12.09 7.26L18 8.18L14 12.14L14.82 18.02L10 15.77L5.18 18.02L6 12.14L2 8.18L7.91 7.26L10 2Z"/>
@@ -95,6 +104,29 @@
             </div>
         </main>
     </div>
+
+    <script>
+        // Function to try multiple image formats for agency logos
+        function tryNextFormat(img, agencyName) {
+            const formats = ['png', 'jpg', 'jpeg', 'svg', 'gif'];
+            const currentSrc = img.src;
+            const currentFormat = currentSrc.split('.').pop();
+            
+            // Find next format to try
+            const currentIndex = formats.indexOf(currentFormat);
+            if (currentIndex < formats.length - 1) {
+                const nextFormat = formats[currentIndex + 1];
+                img.src = currentSrc.replace(/\.[^.]+$/, '.' + nextFormat);
+                img.onerror = function() { tryNextFormat(this, agencyName); };
+            } else {
+                // All formats failed, hide image and show fallback
+                img.style.display = 'none';
+                if (img.previousElementSibling) {
+                    img.previousElementSibling.style.display = 'flex';
+                }
+            }
+        }
+    </script>
 
     {% block extra_js %}{% endblock %}
     <script>
