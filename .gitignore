@@ -3,16 +3,25 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+<<<<<<< HEAD
 
 # Virtual environments
 venv/
 .venv/
 .env
 
+=======
+ 
+# Virtual environments
+venv/
+.venv/
+ 
+>>>>>>> chienyi
 # Django
 db.sqlite3
 *.log
 staticfiles/
+<<<<<<< HEAD
 
 # OS files
 .DS_Store
@@ -20,3 +29,14 @@ staticfiles/
 # IDEs
 .vscode/
 .idea/
+=======
+ 
+# OS files
+.DS_Store
+ 
+# IDEs
+.vscode/
+.idea/
+ 
+ 
+>>>>>>> chienyi

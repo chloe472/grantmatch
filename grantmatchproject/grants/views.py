@@ -471,6 +471,7 @@ def project_matches(request, project_id):
     return render(request, 'grants/project_matches.html', context)
 
 
+
 @login_required
 def grants_list(request):
     """Browse all grants with enhanced filtering"""
