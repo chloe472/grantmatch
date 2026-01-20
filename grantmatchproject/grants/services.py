@@ -277,6 +277,28 @@ class SGGrantsService:
         
         # Join to get full text
         full_text = '\n'.join(lines)
+
+        # Normalize heading-like phrases so they appear on their own lines.
+        # Some OurSG pages place multiple headings in a single paragraph (e.g.
+        # "When can I apply? How much funding can you receive?") which breaks
+        # the section extraction. Insert newlines around known section markers
+        # so `_extract_section_text` can reliably split sections.
+        heading_markers = [
+            'about this grant', 'about the grant', 'the aim', 'about',
+            'who can apply', 'who is eligible', 'eligibility',
+            'when to apply', 'when can i apply', 'application is open', 'application timeline',
+            'how much funding', 'how much funding can you receive', 'funding amount', 'grant amount', 'up to s\$',
+            'how to apply', 'application process', 'completing the grant', 'how to apply\?',
+            'documents required', 'required documents', 'supporting documents', 'documents required for application'
+        ]
+
+        for marker in heading_markers:
+            try:
+                # Case-insensitive: surround the matched marker with newlines
+                full_text = re.sub(r'(?i)(' + re.escape(marker) + r')', lambda m: '\n' + m.group(0).strip() + '\n', full_text)
+            except Exception:
+                # If the regex fails for any marker, continue without breaking extraction
+                continue
         
         # Extract funding info text - specifically look for lines with "$" in the funding section
         funding_text = self._extract_funding_section(full_text) if not table_data else None
@@ -299,8 +321,207 @@ class SGGrantsService:
             'funding_min': funding_min,
             'funding_max': funding_max
         }
-        
+        # Post-process extracted sections to remove any embedded other-section headings
+        # that may have been included when headings were inline in the source.
+        try:
+            # Build reverse map of marker -> section key
+            marker_map = {}
+            mapping = {
+                'about_grant': ['about this grant', 'about the grant', 'the aim', 'about'],
+                'who_can_apply': ['who can apply', 'eligibility', 'who is eligible'],
+                'when_to_apply': ['when to apply', 'when can i apply', 'application is open', 'application timeline'],
+                'funding_info': ['how much funding', 'funding amount', 'grant amount', 'up to s$','funding'],
+                'how_to_apply': ['how to apply', 'application process', 'completing the grant', 'how to apply?'],
+                'required_documents': ['documents required', 'required documents', 'supporting documents']
+            }
+            for k, markers in mapping.items():
+                for m in markers:
+                    marker_map[m.lower()] = k
+
+            # For each extracted section, if it contains a marker that belongs to a
+            # different section, truncate the content at that marker.
+            for key, value in list(extracted.items()):
+                if not isinstance(value, str) or not value:
+                    continue
+                lower_val = value.lower()
+                for marker, owner_key in marker_map.items():
+                    if owner_key == key:
+                        continue
+                    idx = lower_val.find(marker)
+                    if idx != -1:
+                        # Truncate at the start of the found marker
+                        new_text = value[:idx].strip()
+                        # Only replace if truncation yields meaningful text
+                        if new_text and len(new_text) > 10:
+                            extracted[key] = new_text
+                        else:
+                            # If truncation would leave too little, remove the marker itself
+                            extracted[key] = value[idx + len(marker):].strip()
+                        break
+            
+        except Exception:
+            pass
+
+        # Strip any leftover section title fragments (including question marks)
+        # from the start of each section and remove repeated inline headings.
+        try:
+            section_title_variants = {
+                'about_grant': ['about this grant', 'about the grant', 'the aim', 'about this grant:'],
+                'who_can_apply': ['who can apply', 'who can apply?', 'who is eligible', 'eligibility'],
+                'when_to_apply': ['when to apply', 'when can i apply', 'when can i apply?', 'application timeline'],
+                'funding_info': ['how much funding can you receive', 'how much funding can you receive?', 'how much funding', 'funding amount', 'how much funding can you receive?', 'can you receive', 'can you receive?'],
+                'how_to_apply': ['how to apply', 'how to apply?', 'application process', 'completing the grant'],
+                'required_documents': ['documents required', 'required documents', 'documents required for application']
+            }
+
+            for key, text in list(extracted.items()):
+                if not isinstance(text, str) or not text:
+                    continue
+                cleaned = text
+                # Remove any section title variants anywhere in the text
+                for variant in section_title_variants.get(key, []):
+                    try:
+                        # remove variant with optional surrounding punctuation and whitespace
+                        cleaned = re.sub(r'(?i)\s*[:\-–—]?\s*' + re.escape(variant) + r'\s*[:\-–—]?\s*', ' ', cleaned)
+                    except Exception:
+                        continue
+
+                # Also remove other section headings that may have leaked in
+                for other_key, variants in section_title_variants.items():
+                    if other_key == key:
+                        continue
+                    for variant in variants:
+                        try:
+                            cleaned = re.sub(r'(?i)\s*[:\-–—]?\s*' + re.escape(variant) + r'\s*[:\-–—]?\s*', ' ', cleaned)
+                        except Exception:
+                            continue
+
+                # Trim and normalize whitespace, remove leading punctuation
+                cleaned = re.sub(r'^[\s\W]+', '', cleaned)
+                cleaned = re.sub(r'\s{2,}', ' ', cleaned).strip()
+                extracted[key] = cleaned
+        except Exception:
+            pass
+
         return extracted
+    
+        def _extract_grant_sections(self, soup):
+            """
+            Extract grant sections from the rendered HTML using heading-aware parsing.
+            This method finds section headings (h1-h4 or strong tags that look like headings)
+            and collects following content up until the next heading. It returns a dict
+            with keys matching the UI sections.
+            """
+            from bs4 import Tag
+
+            # Mapping of target keys to lists of keywords that identify the section heading
+            mapping = {
+                'about_grant': ['about this grant', 'about the grant', 'the aim', 'about'],
+                'who_can_apply': ['who can apply', 'eligibility', 'who is eligible'],
+                'when_to_apply': ['when to apply', 'when can i apply', 'application is open', 'application timeline'],
+                'funding_info': ['how much funding', 'funding amount', 'grant amount', 'up to s$','funding'],
+                'how_to_apply': ['how to apply', 'application process', 'completing the grant', 'how to apply?'],
+                'required_documents': ['documents required', 'required documents', 'supporting documents']
+            }
+
+            # Initialize results with empty strings
+            results = {k: '' for k in mapping.keys()}
+
+            # Prefer explicit heading tags - collect all potential heading elements
+            heading_tags = soup.find_all(['h1', 'h2', 'h3', 'h4'])
+
+            # Also consider bold/strong elements that may be used as headings
+            strong_tags = [t for t in soup.find_all('strong') if t.get_text(strip=True) and len(t.get_text(strip=True)) < 120]
+
+            candidates = heading_tags + strong_tags
+
+            # If no candidates found, fall back to searching top-level paragraphs
+            if not candidates:
+                candidates = soup.find_all(['p', 'div'])[:]
+
+            # Walk through candidates and match headings to mapping
+            for el in candidates:
+                heading_text = el.get_text(' ', strip=True).lower()
+                if not heading_text:
+                    continue
+
+                matched_key = None
+                for key, keywords in mapping.items():
+                    if any(kw in heading_text for kw in keywords):
+                        matched_key = key
+                        break
+
+                if not matched_key:
+                    continue
+
+                # Collect following sibling content until next heading-like element
+                pieces = []
+                node = el.next_sibling
+                while node:
+                    # Skip navigable strings that are just whitespace
+                    if isinstance(node, Tag):
+                        # Stop if node is a heading tag or another strong that looks like a header
+                        if node.name in ['h1', 'h2', 'h3', 'h4']:
+                            break
+                        node_text = node.get_text(' ', strip=True)
+                        if node_text and len(node_text) > 3:
+                            pieces.append(node_text)
+                    else:
+                        # string
+                        t = str(node).strip()
+                        if t and len(t) > 3:
+                            pieces.append(t)
+                    node = node.next_sibling
+
+                # If nothing captured via siblings, attempt to capture the following elements in DOM tree
+                if not pieces:
+                    for sib in el.find_next_siblings():
+                        if isinstance(sib, Tag) and sib.name in ['h1', 'h2', 'h3', 'h4']:
+                            break
+                        text = sib.get_text(' ', strip=True) if isinstance(sib, Tag) else str(sib).strip()
+                        if text and len(text) > 3:
+                            pieces.append(text)
+
+                # Join pieces and clean repeated heading-like prefixes
+                section_text = ' '.join(pieces).strip()
+                # Remove repeated heading if accidentally included
+                for kw in mapping[matched_key]:
+                    if section_text.lower().startswith(kw):
+                        section_text = section_text[len(kw):].strip(' :–-\n')
+
+                results[matched_key] = section_text[:4000]
+
+            # As a fallback, use text-search extraction for missing sections
+            full_text = soup.get_text('\n', strip=True)
+            if not results['when_to_apply']:
+                results['when_to_apply'] = self._extract_section_text(full_text, ['when to apply', 'when can i apply', 'application is open'])
+            if not results['funding_info']:
+                results['funding_info'] = self._extract_section_text(full_text, ['how much funding', 'funding amount', 'grant amount', 'up to s$'])
+            if not results['how_to_apply']:
+                results['how_to_apply'] = self._extract_section_text(full_text, ['how to apply', 'application process'])
+            if not results['about_grant']:
+                results['about_grant'] = self._extract_section_text(full_text, ['about this grant', 'the aim'])
+            if not results['who_can_apply']:
+                results['who_can_apply'] = self._extract_section_text(full_text, ['who can apply', 'eligibility'])
+            if not results['required_documents']:
+                results['required_documents'] = self._extract_section_text(full_text, ['documents required', 'required documents'])
+
+            # Parse funding amounts from funding_info
+            funding_min, funding_max = self._parse_funding(results.get('funding_info', '')) if results.get('funding_info') else (None, None)
+
+            extracted = {
+                'about_grant': results.get('about_grant', ''),
+                'who_can_apply': results.get('who_can_apply', ''),
+                'when_to_apply': results.get('when_to_apply', ''),
+                'funding_info': results.get('funding_info', ''),
+                'how_to_apply': results.get('how_to_apply', ''),
+                'required_documents': results.get('required_documents', ''),
+                'document_links': self._extract_document_links(soup),
+                'funding_min': funding_min,
+                'funding_max': funding_max
+            }
+
+            return extracted
     
     def _extract_funding_table_from_html(self, soup):
         """
