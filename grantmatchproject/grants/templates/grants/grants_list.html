@@ -39,12 +39,15 @@
                     <span class="grant-icon-default">{{ grant.agency.acronym|slice:":1" }}</span>
                 </div>
                 <div class="grant-agency">{{ grant.agency.acronym }}</div>
-                {% if grant.match_score %}
-                <div class="match-badge match-badge-high">{{ grant.match_score }}%</div>
-                {% endif %}
+                
             </div>
             <h3 class="grant-title">{{ grant.title }}</h3>
-            <div class="grant-funding">{{ grant.funding_range }}</div>
+            <div class="grant-funding">
+                {{ grant.funding_range }}
+                {% if grant.user_match_score %}
+                <span class="tag tag-purple">{{ grant.user_match_score }}% match</span>
+                {% endif %}
+            </div>
             <div class="grant-deadline">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                     <rect x="3" y="2" width="10" height="12" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>

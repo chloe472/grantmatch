@@ -1,3 +1,5 @@
+from .models import Grant
+from .matching import compute_match_score
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login, authenticate
@@ -169,48 +171,30 @@ def project_create(request):
 
 
 def calculate_matches_for_project(project):
-    """Calculate grant matches for a project using AI matching logic"""
+    """Calculate grant matches for a project using deterministic scoring logic"""
     grants = Grant.objects.filter(status='open')
-    
+
     for grant in grants:
-        score = 0
-        reasons = []
-        
-        # Simple matching logic (replace with actual AI in production)
-        if project.focus_area.lower() in grant.description.lower():
-            score += 30
-            reasons.append(f"Perfect alignment with {project.focus_area} programs")
-        
-        if project.budget_required_min and grant.funding_min:
-            if grant.funding_min <= project.budget_required_max and grant.funding_max >= project.budget_required_min:
-                score += 25
-                reasons.append("Budget range matches your requirements")
-        
-        if project.kpis and grant.description:
-            score += 20
-            reasons.append("KPIs align with your service outcomes")
-        
-        if project.duration_years and grant.duration_years:
-            score += 15
-            reasons.append("Timeline aligns with project scope")
-        
-        # Add some base score for open grants
-        score += 10
-        
-        if score >= 70:  # Only create matches with 70%+ score
+        score, reasons = compute_match_score(project, grant)
+
+        if score >= 70:
             GrantMatch.objects.update_or_create(
                 project=project,
                 grant=grant,
                 defaults={
-                    'match_score': min(score, 100),
-                    'match_reasons': reasons[:3]  # Top 3 reasons
+                    'match_score': score,
+                    'match_reasons': reasons[:3],
                 }
             )
+
 
 
 @login_required
 def grants_list(request):
     """Browse all grants"""
+    from django.db.models import Max, OuterRef, Subquery
+
+    # Base queryset
     grants = Grant.objects.select_related('agency').all()
     
     # Filtering
@@ -232,6 +216,20 @@ def grants_list(request):
         grants = grants.filter(status=status_filter)
     
     agencies = Agency.objects.all()
+
+    # For the logged-in user, annotate each grant with their best match_score
+    user_projects = Project.objects.filter(user=request.user)
+    if user_projects.exists():
+        user_matches = (
+            GrantMatch.objects.filter(
+                grant=OuterRef('pk'),
+                project__in=user_projects,
+            )
+            .values('grant')
+            .annotate(best_score=Max('match_score'))
+            .values('best_score')
+        )
+        grants = grants.annotate(user_match_score=Subquery(user_matches[:1]))
     
     context = {
         'grants': grants,
