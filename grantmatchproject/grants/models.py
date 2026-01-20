@@ -62,6 +62,8 @@ class Grant(models.Model):
             return f"${self.funding_min:,.0f}K - ${self.funding_max:,.0f}K"
         elif self.funding_min:
             return f"${self.funding_min:,.0f}K+"
+        elif self.funding_max:
+            return f"Up to ${self.funding_max:,.0f}K"
         return "Amount not specified"
     
     @property
