@@ -1,3 +1,22 @@
-*.sqlite3
-*.sqlite3
-*.sqlite3
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.venv/
+.env
+
+# Django
+db.sqlite3
+*.log
+staticfiles/
+
+# OS files
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/
