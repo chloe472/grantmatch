@@ -268,38 +268,74 @@ class SGGrantsService:
         Also parses funding amounts from the funding_info section.
         Detects HTML tables for structured funding data.
         """
+        print(f"\n=== EXTRACT GRANT SECTIONS START ===")
+        
         # First, try to extract HTML tables with funding data
         table_data = self._extract_funding_table_from_html(soup)
+        print(f"Table data found: {table_data is not None}")
         
-        # Get all text lines that are meaningful
-        all_text = soup.get_text()
-        lines = [line.strip() for line in all_text.split('\n') if line.strip() and len(line.strip()) > 10]
+        # Get raw text without aggressive filtering for funding extraction
+        raw_text = soup.get_text()
+        print(f"Raw text length: {len(raw_text)} characters")
+        
+        # Extract funding info FIRST from raw text before line filtering
+        funding_text = self._extract_funding_section(raw_text) if not table_data else None
+        print(f"Funding text extracted: {funding_text is not None}")
+        if funding_text:
+            print(f"Funding text content: {funding_text}")
+        
+        # Extract when to apply BEFORE line filtering to preserve structure
+        when_to_apply_text = self._extract_when_to_apply_section(raw_text)
+        print(f"When to apply text extracted: {when_to_apply_text is not None}")
+        if when_to_apply_text:
+            print(f"When to apply text content: {when_to_apply_text}")
+        
+        # Extract who can apply
+        who_can_apply_text = self._extract_who_can_apply_section(raw_text)
+        print(f"Who can apply text extracted: {who_can_apply_text is not None}")
+        if who_can_apply_text:
+            print(f"Who can apply text content: {who_can_apply_text}")
+        
+        # Extract about grant
+        about_grant_text = self._extract_about_grant_section(raw_text)
+        print(f"About grant text extracted: {about_grant_text is not None}")
+        if about_grant_text:
+            print(f"About grant text content: {about_grant_text}")
+        
+        # Extract how to apply
+        how_to_apply_text = self._extract_how_to_apply_section(raw_text)
+        print(f"How to apply text extracted: {how_to_apply_text is not None}")
+        if how_to_apply_text:
+            print(f"How to apply text content: {how_to_apply_text}")
+        
+        # Now process for other sections with the line filtering
+        lines = [line.strip() for line in raw_text.split('\n') if line.strip() and len(line.strip()) > 10]
         
         # Join to get full text
         full_text = '\n'.join(lines)
         
-        # Extract funding info text - specifically look for lines with "$" in the funding section
-        funding_text = self._extract_funding_section(full_text) if not table_data else None
-        
         # Parse funding amounts from the extracted text
         funding_min, funding_max = self._parse_funding(funding_text) if funding_text else (None, None)
+        print(f"Parsed amounts - min: {funding_min}, max: {funding_max}")
         
         # Use table data if found, otherwise use text
         grant_amount_text = table_data if table_data else (funding_text if funding_text else None)
+        print(f"Final grant_amount_text: {grant_amount_text is not None}")
         
         extracted = {
-            'about_grant': self._extract_section_text(full_text, ['about this grant', 'the aim']),
-            'who_can_apply': self._extract_section_text(full_text, ['who can apply', 'eligibility', 'who is eligible']),
-            'when_to_apply': self._extract_section_text(full_text, ['when to apply', 'when can i apply', 'application is open', 'application timeline']),
+            'about_grant': about_grant_text if about_grant_text else self._clean_section_content(self._extract_section_text(full_text, ['about this grant', 'the aim'])),
+            'who_can_apply': who_can_apply_text if who_can_apply_text else self._clean_section_content(self._extract_section_text(full_text, ['who can apply', 'eligibility', 'who is eligible'])),
+            'when_to_apply': when_to_apply_text if when_to_apply_text else self._clean_section_content(self._extract_section_text(full_text, ['when to apply', 'when can i apply', 'application is open', 'application timeline'])),
             'funding_info': grant_amount_text,
             'grant_amount_text': grant_amount_text,
-            'how_to_apply': self._extract_section_text(full_text, ['how to apply', 'completing the grant', 'application process']),
-            'required_documents': self._extract_section_text(full_text, ['documents required', 'required documents', 'supporting documents']),
+            'how_to_apply': how_to_apply_text if how_to_apply_text else self._clean_section_content(self._extract_section_text(full_text, ['how to apply', 'completing the grant', 'application process'])),
+            'required_documents': self._clean_section_content(self._extract_section_text(full_text, ['documents required', 'required documents', 'supporting documents'])),
             'document_links': self._extract_document_links(soup),
             'funding_min': funding_min,
             'funding_max': funding_max
         }
         
+        print(f"=== EXTRACT GRANT SECTIONS END ===\n")
         return extracted
     
     def _extract_funding_table_from_html(self, soup):
@@ -349,46 +385,76 @@ class SGGrantsService:
 
     def _extract_funding_section(self, full_text):
         """
-        Extract funding information from plain text (when not in table format)
-        Returns single funding sentence or phrase, not structured as table
+        Extract ONLY funding information from plain text
+        Stops immediately after funding lines, before any other sections
         """
-        # Split into lines
         lines = full_text.split('\n')
+        print(f"\n=== FUNDING EXTRACTION DEBUG ===")
+        print(f"Total lines in full_text: {len(lines)}")
         
         funding_lines = []
-        in_funding_context = False
-        funding_context_lines = 0
         
+        # Section headers that mark the end of funding section
+        section_end_keywords = [
+            'how to apply', 'documents required', 'documents required for',
+            'eligibility', 'application process', 'completing the grant'
+        ]
+        
+        # AGGRESSIVE FALLBACK: Search for ANY line with $ and funding keywords
+        print(f"\n--- AGGRESSIVE FALLBACK SEARCH ---")
         for i, line in enumerate(lines):
-            clean_line = line.strip()
+            line_stripped = line.strip()
+            line_lower = line_stripped.lower()
             
-            # Skip very short lines and JavaScript
-            if not clean_line or len(clean_line) < 5 or 'javascript' in clean_line.lower():
-                continue
-            
-            # Check if line contains funding-related keywords
-            line_lower = clean_line.lower()
-            is_context_keyword = any(keyword in line_lower for keyword in [
-                'capped', 'up to', 'maximum', 'minimum', 'receive'
-            ])
-            
-            # Collect lines with $ in funding context
-            if '$' in clean_line:
-                print(f"DEBUG: Found $ in line: {clean_line}")
+            # Look for $ amounts with funding keywords
+            if '$' in line_stripped and any(keyword in line_lower for keyword in [
+                'capped', 'up to', 'youthcreates', 'team nila', 'team singapore', 
+                'maximum', 'minimum', '20,000', '20000'
+            ]):
+                print(f"  FOUND at line {i}: {line_stripped}")
                 
-                funding_text = self._extract_funding_text(clean_line)
+                # CRITICAL: Clean the line to remove any section headers that follow
+                # Split by common section boundaries
+                cleaned_line = line_stripped
+                for section_keyword in section_end_keywords:
+                    # Find where the section keyword starts (case-insensitive)
+                    idx = cleaned_line.lower().find(section_keyword)
+                    if idx != -1:
+                        print(f"  FOUND SECTION KEYWORD '{section_keyword}' in line at position {idx}")
+                        # Keep only the part before the section keyword
+                        cleaned_line = cleaned_line[:idx].strip()
+                        print(f"  CLEANED LINE: {cleaned_line}")
+                        break
                 
-                if funding_text and funding_text not in funding_lines:
-                    print(f"DEBUG: Adding funding line: {funding_text}")
-                    funding_lines.append(funding_text)
+                funding_lines.append(cleaned_line)
+                # IMPORTANT: After finding the main funding line, check next lines
+                # but stop at first section header or non-funding content
+                for j in range(i + 1, min(i + 5, len(lines))):
+                    next_line = lines[j].strip()
+                    next_line_lower = next_line.lower()
+                    
+                    # Stop if we hit a section header
+                    if any(keyword in next_line_lower for keyword in section_end_keywords):
+                        print(f"  STOPPING at line {j}: {next_line[:50]}")
+                        break
+                    
+                    # Continue if it's funding-related
+                    if '$' in next_line or any(kw in next_line_lower for kw in ['capped', 'up to', 'maximum', 'team']):
+                        print(f"  CONTINUING at line {j}: {next_line}")
+                        funding_lines.append(next_line)
+                    # Stop if it's long text without funding keywords
+                    elif next_line and len(next_line) > 30:
+                        print(f"  STOPPING - long non-funding line at {j}: {next_line[:50]}")
+                        break
         
-        # Return as plain text (tables are handled separately)
         if funding_lines:
-            result = '\n'.join(funding_lines)
-            print(f"DEBUG: Extracted funding as plain text: {result}")
+            result = '\n'.join(funding_lines).strip()
+            print(f"\nExtracted via AGGRESSIVE search: {result}")
+            print(f"=== END DEBUG ===\n")
             return result
         
-        print(f"DEBUG: No $ symbol found in page")
+        print(f"No funding information found")
+        print(f"=== END DEBUG ===\n")
         return None
     
     def _parse_funding_table(self, funding_lines):
@@ -477,6 +543,352 @@ class SGGrantsService:
                     return '\n'.join(result_lines[:10])
         
         return ''
+    
+    def _extract_when_to_apply_section(self, full_text):
+        """
+        Extract ONLY the 'When can I apply?' section
+        This should contain information about application timelines/periods
+        Searches for lines with "all year" or specific timing indicators
+        """
+        lines = full_text.split('\n')
+        print(f"\n=== WHEN TO APPLY EXTRACTION DEBUG ===")
+        print(f"Total lines in full_text: {len(lines)}")
+        
+        result_lines = []
+        
+        # Section headers that should NOT be in this section
+        section_end_keywords = [
+            'how much funding', 'documents required', 'how to apply',
+            'eligibility', 'about this grant', 'who can apply', 'capped at',
+            'active citizen', 'docx', '.pdf', '.xlsx'
+        ]
+        
+        # PRIORITY 1: Search for lines with "all year" or "year round" - most specific
+        print(f"\n--- PRIORITY 1: SEARCHING FOR 'ALL YEAR' or 'YEAR ROUND' ---")
+        for i, line in enumerate(lines):
+            line_stripped = line.strip()
+            line_lower = line_stripped.lower()
+            
+            # Look for "all year" or "year round" specifically
+            if ('all year' in line_lower or 'year round' in line_lower) and 'team' in line_lower:
+                print(f"  FOUND TIMING LINE at line {i}: {line_stripped[:100]}")
+                
+                # Clean the line to remove any section headers that follow
+                cleaned_line = line_stripped
+                for section_keyword in section_end_keywords:
+                    idx = cleaned_line.lower().find(section_keyword)
+                    if idx != -1:
+                        print(f"  FOUND SECTION KEYWORD '{section_keyword}' at position {idx}")
+                        # Keep only the part before the section keyword
+                        cleaned_line = cleaned_line[:idx].strip()
+                        print(f"  CLEANED: {cleaned_line}")
+                        break
+                
+                if cleaned_line:
+                    result_lines.append(cleaned_line)
+        
+        if result_lines:
+            result = '\n'.join(result_lines).strip()
+            
+            # Remove common question headers from the result
+            headers_to_remove = ['when can i apply?', 'when to apply?', 'when can i apply', 'when to apply']
+            for header in headers_to_remove:
+                if result.lower().startswith(header):
+                    result = result[len(header):].strip()
+                    break
+            
+            print(f"\nExtracted when_to_apply (Priority 1): {result}")
+            print(f"=== END DEBUG ===\n")
+            return result
+        
+        # PRIORITY 2: Search for section header then get next relevant line
+        print(f"\n--- PRIORITY 2: SEARCHING FOR SECTION HEADER ---")
+        section_start = -1
+        for i, line in enumerate(lines):
+            line_lower = line.strip().lower()
+            if 'when can i apply' in line_lower or 'when to apply' in line_lower:
+                section_start = i
+                print(f"Found 'When can I apply?' header at line {i}: {line.strip()}")
+                break
+        
+        if section_start == -1:
+            print(f"'When can I apply?' header not found")
+            print(f"=== END DEBUG ===\n")
+            return None
+        
+        # Collect lines after the header, looking for timing content
+        print(f"Collecting lines after header (starting at line {section_start + 1}):")
+        for i in range(section_start + 1, min(section_start + 10, len(lines))):
+            line = lines[i].strip()
+            
+            # Skip empty lines and very short lines
+            if not line or len(line) < 5:
+                continue
+            
+            line_lower = line.lower()
+            print(f"  Line {i}: {line[:80]}")
+            
+            # Stop at section boundaries
+            if any(keyword in line_lower for keyword in section_end_keywords):
+                print(f"  -> Hit section boundary '{keyword}', stopping")
+                break
+            
+            # Look for lines containing "all year", "year round", or team names with timing keywords
+            if any(keyword in line_lower for keyword in ['all year', 'year round', 'round the year', 'throughout the year']):
+                print(f"  -> FOUND TIMING LINE, COLLECTING")
+                
+                # Clean this line
+                cleaned_line = line
+                for section_keyword in section_end_keywords:
+                    idx = cleaned_line.lower().find(section_keyword)
+                    if idx != -1:
+                        cleaned_line = cleaned_line[:idx].strip()
+                        break
+                
+                if cleaned_line:
+                    result_lines.append(cleaned_line)
+                break  # Stop after finding the first timing line
+        
+        if result_lines:
+            result = '\n'.join(result_lines).strip()
+            
+            # Remove common question headers from the result
+            headers_to_remove = ['when can i apply?', 'when to apply?', 'when can i apply', 'when to apply']
+            for header in headers_to_remove:
+                if result.lower().startswith(header):
+                    result = result[len(header):].strip()
+                    break
+            
+            print(f"\nExtracted when_to_apply (Priority 2): {result}")
+            print(f"=== END DEBUG ===\n")
+            return result
+        
+        print(f"No when_to_apply information found")
+        print(f"=== END DEBUG ===\n")
+        return None
+    
+    def _extract_about_grant_section(self, full_text):
+        """
+        Extract ONLY the 'About this grant' section
+        """
+        lines = full_text.split('\n')
+        print(f"\n=== ABOUT GRANT EXTRACTION DEBUG ===")
+        
+        result_lines = []
+        section_end_keywords = ['who can apply', 'when can i apply', 'when to apply', 'how much funding', 'how to apply', 'documents required']
+        
+        # Search for section header
+        section_start = -1
+        for i, line in enumerate(lines):
+            line_lower = line.strip().lower()
+            if 'about this grant' in line_lower or 'about the grant' in line_lower:
+                section_start = i
+                print(f"Found 'About this grant' header at line {i}")
+                break
+        
+        if section_start == -1:
+            print(f"'About this grant' header not found")
+            print(f"=== END DEBUG ===\n")
+            return None
+        
+        # Collect lines after the header
+        print(f"Collecting lines after header:")
+        for i in range(section_start + 1, min(section_start + 20, len(lines))):
+            line = lines[i].strip()
+            
+            if not line or len(line) < 3:
+                continue
+            
+            line_lower = line.lower()
+            print(f"  Line {i}: {line[:80]}")
+            
+            # Stop at section boundaries
+            if any(keyword in line_lower for keyword in section_end_keywords):
+                print(f"  -> Hit section boundary, stopping")
+                break
+            
+            # Clean line from section headers
+            cleaned_line = line
+            for section_keyword in section_end_keywords:
+                idx = cleaned_line.lower().find(section_keyword)
+                if idx != -1:
+                    cleaned_line = cleaned_line[:idx].strip()
+                    break
+            
+            if cleaned_line and len(cleaned_line) > 3:
+                result_lines.append(cleaned_line)
+        
+        if result_lines:
+            result = '\n'.join(result_lines).strip()
+            print(f"\nExtracted about_grant: {result[:100]}...")
+            print(f"=== END DEBUG ===\n")
+            return result
+        
+        print(f"No about_grant information found")
+        print(f"=== END DEBUG ===\n")
+        return None
+    
+    def _extract_who_can_apply_section(self, full_text):
+        """
+        Extract ONLY the 'Who can apply' section
+        """
+        lines = full_text.split('\n')
+        print(f"\n=== WHO CAN APPLY EXTRACTION DEBUG ===")
+        
+        result_lines = []
+        section_end_keywords = ['when can i apply', 'when to apply', 'how much funding', 'how to apply', 'documents required', 'about this grant']
+        
+        # Search for section header
+        section_start = -1
+        for i, line in enumerate(lines):
+            line_lower = line.strip().lower()
+            if 'who can apply' in line_lower or 'eligibility' in line_lower:
+                section_start = i
+                print(f"Found 'Who can apply' header at line {i}")
+                break
+        
+        if section_start == -1:
+            print(f"'Who can apply' header not found")
+            print(f"=== END DEBUG ===\n")
+            return None
+        
+        # Collect lines after the header
+        print(f"Collecting lines after header:")
+        for i in range(section_start + 1, min(section_start + 20, len(lines))):
+            line = lines[i].strip()
+            
+            if not line or len(line) < 3:
+                continue
+            
+            line_lower = line.lower()
+            print(f"  Line {i}: {line[:80]}")
+            
+            # Stop at section boundaries
+            if any(keyword in line_lower for keyword in section_end_keywords):
+                print(f"  -> Hit section boundary, stopping")
+                break
+            
+            # Clean line from section headers
+            cleaned_line = line
+            for section_keyword in section_end_keywords:
+                idx = cleaned_line.lower().find(section_keyword)
+                if idx != -1:
+                    cleaned_line = cleaned_line[:idx].strip()
+                    break
+            
+            if cleaned_line and len(cleaned_line) > 3:
+                result_lines.append(cleaned_line)
+        
+        if result_lines:
+            result = '\n'.join(result_lines).strip()
+            print(f"\nExtracted who_can_apply: {result[:100]}...")
+            print(f"=== END DEBUG ===\n")
+            return result
+        
+        print(f"No who_can_apply information found")
+        print(f"=== END DEBUG ===\n")
+        return None
+    
+    def _extract_how_to_apply_section(self, full_text):
+        """
+        Extract ONLY the 'How to apply' section
+        """
+        lines = full_text.split('\n')
+        print(f"\n=== HOW TO APPLY EXTRACTION DEBUG ===")
+        
+        result_lines = []
+        section_end_keywords = ['documents required', 'documents required for application', 'required documents', 'when can i apply', 'when to apply', 'who can apply']
+        
+        # Search for section header
+        section_start = -1
+        for i, line in enumerate(lines):
+            line_lower = line.strip().lower()
+            if 'how to apply' in line_lower:
+                section_start = i
+                print(f"Found 'How to apply' header at line {i}")
+                break
+        
+        if section_start == -1:
+            print(f"'How to apply' header not found")
+            print(f"=== END DEBUG ===\n")
+            return None
+        
+        # Collect lines after the header
+        print(f"Collecting lines after header:")
+        for i in range(section_start + 1, min(section_start + 15, len(lines))):
+            line = lines[i].strip()
+            
+            if not line or len(line) < 3:
+                continue
+            
+            line_lower = line.lower()
+            print(f"  Line {i}: {line[:80]}")
+            
+            # Stop at section boundaries
+            if any(keyword in line_lower for keyword in section_end_keywords):
+                print(f"  -> Hit section boundary, stopping")
+                break
+            
+            # Clean line from section headers
+            cleaned_line = line
+            for section_keyword in section_end_keywords:
+                idx = cleaned_line.lower().find(section_keyword)
+                if idx != -1:
+                    cleaned_line = cleaned_line[:idx].strip()
+                    break
+            
+            if cleaned_line and len(cleaned_line) > 3:
+                result_lines.append(cleaned_line)
+        
+        if result_lines:
+            result = '\n'.join(result_lines).strip()
+            print(f"\nExtracted how_to_apply: {result[:100]}...")
+            print(f"=== END DEBUG ===\n")
+            return result
+        
+        print(f"No how_to_apply information found")
+        print(f"=== END DEBUG ===\n")
+        return None
+    
+    def _clean_section_content(self, content):
+        """
+        Clean section content by removing any concatenated section headers
+        This handles cases where multiple sections are on the same line
+        """
+        if not content:
+            return content
+        
+        # List of section headers that shouldn't be in other sections
+        section_headers = [
+            'how to apply', 'documents required', 'completing the grant',
+            'how much funding', 'when can i apply', 'who can apply',
+            'about this grant', 'eligibility', 'application process',
+            'documents required for application'
+        ]
+        
+        # For each line, check if it contains section headers and truncate
+        lines = content.split('\n')
+        cleaned_lines = []
+        
+        for line in lines:
+            cleaned_line = line
+            line_lower = line.lower()
+            
+            # Find the earliest section header in this line
+            earliest_idx = len(line)
+            for header in section_headers:
+                idx = line_lower.find(header)
+                if idx != -1 and idx < earliest_idx:
+                    earliest_idx = idx
+            
+            # If a section header was found, keep only the part before it
+            if earliest_idx < len(line):
+                cleaned_line = line[:earliest_idx].strip()
+            
+            if cleaned_line:  # Only add non-empty lines
+                cleaned_lines.append(cleaned_line)
+        
+        return '\n'.join(cleaned_lines).strip()
     
     def _extract_document_links(self, soup):
         """
