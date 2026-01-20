@@ -147,33 +147,78 @@ class SGGrantsService:
         if not grant_detail:
             return None
         
+        # Debug: Show what we got from API
+        print(f"DEBUG: Grant from API - Title: {grant_detail.get('title')}")
+        print(f"DEBUG: grant_amount_text from API: {grant_detail.get('grant_amount_text')}")
+        print(f"DEBUG: funding_min from API: {grant_detail.get('funding_min')}")
+        print(f"DEBUG: funding_max from API: {grant_detail.get('funding_max')}")
+        
+        # Initialize funding_info from grant_amount_text if available
+        if grant_detail.get('grant_amount_text') and not grant_detail.get('funding_info'):
+            grant_detail['funding_info'] = grant_detail.get('grant_amount_text')
+            print(f"DEBUG: Initialized funding_info from grant_amount_text: {grant_detail['funding_info']}")
+        
         # Fetch real content from the instruction page using Playwright
         instruction_url = grant_detail.get('application_url', '')
+        page_content = None
         if instruction_url:
             try:
+                print(f"DEBUG: Attempting to fetch from Playwright: {instruction_url}")
                 page_content = self._fetch_instruction_page_with_playwright(instruction_url)
                 if page_content:
+                    print(f"DEBUG: Playwright returned page_content with funding_info: {page_content.get('funding_info')}")
                     grant_detail.update(page_content)
-                    return grant_detail
+                else:
+                    print(f"DEBUG: Playwright returned None")
             except Exception as e:
                 print(f"Could not fetch detailed content with Playwright: {e}")
                 # Fall back to basic formatting
         
-        # Fallback: Use formatted data from API
-        grant_detail['about_grant'] = grant_detail.get('description', '')
-        grant_detail['who_can_apply'] = self._format_applicable_to(grant_detail) if grant_detail.get('applicable_to') else 'Please check the official grant page for eligibility criteria.'
-        grant_detail['when_to_apply'] = self._format_closing_dates(grant_detail.get('closing_date_text', ''))
-        grant_detail['funding_info'] = self._format_funding(grant_detail.get('funding_min'), grant_detail.get('funding_max'), grant_detail.get('grant_amount_text', ''))
-        grant_detail['how_to_apply'] = grant_detail.get('how_to_apply_html', 'Please visit the official OurSG Grants Portal for detailed application instructions.')
-        grant_detail['required_documents'] = 'Please refer to the official grant page for required supporting documents.'
-        grant_detail['document_links'] = [
-            {
-                'name': 'View Required Documents on OurSG',
-                'url': instruction_url,
-                'size': 'External Link'
-            }
-        ]
+        # If funding info is still not available, try scraping from /grants/new page
+        if not grant_detail.get('funding_info') or (not grant_detail.get('funding_min') and not grant_detail.get('funding_max')):
+            print(f"DEBUG: Attempting to scrape from /grants/new page")
+            scraped_funding = self._scrape_funding_from_new_page(
+                grant_title=grant_detail.get('title'),
+                grant_value=grant_value
+            )
+            if scraped_funding:
+                print(f"DEBUG: Scraped funding found: {scraped_funding}")
+                grant_detail.update(scraped_funding)
+            else:
+                print(f"DEBUG: Scraping from /grants/new returned nothing")
         
+        # ALWAYS ensure funding_info is set before returning
+        if not grant_detail.get('funding_info'):
+            print(f"DEBUG: No funding_info found, using fallback formatting")
+            # Build funding info from available data
+            if grant_detail.get('grant_amount_text'):
+                grant_detail['funding_info'] = grant_detail.get('grant_amount_text')
+                print(f"DEBUG: Using grant_amount_text as fallback: {grant_detail['funding_info']}")
+            else:
+                formatted_funding = self._format_funding(
+                    grant_detail.get('funding_min'),
+                    grant_detail.get('funding_max'),
+                    ''
+                )
+                grant_detail['funding_info'] = formatted_funding
+                print(f"DEBUG: Using formatted_funding as fallback: {formatted_funding}")
+        
+        # If we still don't have page content, use fallback formatting for other fields
+        if not page_content:
+            grant_detail['about_grant'] = grant_detail.get('description', '')
+            grant_detail['who_can_apply'] = self._format_applicable_to(grant_detail) if grant_detail.get('applicable_to') else 'Please check the official grant page for eligibility criteria.'
+            grant_detail['when_to_apply'] = self._format_closing_dates(grant_detail.get('closing_date_text', ''))
+            grant_detail['how_to_apply'] = grant_detail.get('how_to_apply_html', 'Please visit the official OurSG Grants Portal for detailed application instructions.')
+            grant_detail['required_documents'] = 'Please refer to the official grant page for required supporting documents.'
+            grant_detail['document_links'] = [
+                {
+                    'name': 'View Required Documents on OurSG',
+                    'url': instruction_url,
+                    'size': 'External Link'
+                }
+            ]
+        
+        print(f"DEBUG: Returning grant_detail with funding_info: {grant_detail.get('funding_info')}")
         return grant_detail
     
     def _fetch_instruction_page_with_playwright(self, instruction_url):
@@ -221,7 +266,11 @@ class SGGrantsService:
         """
         Extract grant sections from the rendered HTML.
         Also parses funding amounts from the funding_info section.
+        Detects HTML tables for structured funding data.
         """
+        # First, try to extract HTML tables with funding data
+        table_data = self._extract_funding_table_from_html(soup)
+        
         # Get all text lines that are meaningful
         all_text = soup.get_text()
         lines = [line.strip() for line in all_text.split('\n') if line.strip() and len(line.strip()) > 10]
@@ -229,17 +278,21 @@ class SGGrantsService:
         # Join to get full text
         full_text = '\n'.join(lines)
         
-        # Extract funding info text
-        funding_text = self._extract_section_text(full_text, ['how much funding', 'funding amount', 'grant amount', 'up to s$'])
+        # Extract funding info text - specifically look for lines with "$" in the funding section
+        funding_text = self._extract_funding_section(full_text) if not table_data else None
         
         # Parse funding amounts from the extracted text
         funding_min, funding_max = self._parse_funding(funding_text) if funding_text else (None, None)
+        
+        # Use table data if found, otherwise use text
+        grant_amount_text = table_data if table_data else (funding_text if funding_text else None)
         
         extracted = {
             'about_grant': self._extract_section_text(full_text, ['about this grant', 'the aim']),
             'who_can_apply': self._extract_section_text(full_text, ['who can apply', 'eligibility', 'who is eligible']),
             'when_to_apply': self._extract_section_text(full_text, ['when to apply', 'when can i apply', 'application is open', 'application timeline']),
-            'funding_info': funding_text,
+            'funding_info': grant_amount_text,
+            'grant_amount_text': grant_amount_text,
             'how_to_apply': self._extract_section_text(full_text, ['how to apply', 'completing the grant', 'application process']),
             'required_documents': self._extract_section_text(full_text, ['documents required', 'required documents', 'supporting documents']),
             'document_links': self._extract_document_links(soup),
@@ -248,6 +301,111 @@ class SGGrantsService:
         }
         
         return extracted
+    
+    def _extract_funding_table_from_html(self, soup):
+        """
+        Extract funding information from HTML tables
+        Returns dict with table structure if found, None otherwise
+        """
+        # Find all tables in the page
+        tables = soup.find_all('table')
+        
+        for table in tables:
+            # Get all rows
+            rows = table.find_all('tr')
+            
+            if len(rows) < 2:
+                continue
+            
+            # Parse table rows
+            parsed_rows = []
+            has_dollar_sign = False
+            
+            for row in rows:
+                cells = row.find_all(['td', 'th'])
+                if not cells:
+                    continue
+                
+                # Extract text from each cell
+                cell_texts = []
+                for cell in cells:
+                    cell_text = cell.get_text(strip=True)
+                    cell_texts.append(cell_text)
+                    if '$' in cell_text:
+                        has_dollar_sign = True
+                
+                if cell_texts:
+                    parsed_rows.append(cell_texts)
+            
+            # If this table has $ signs and reasonable structure, return it
+            if has_dollar_sign and len(parsed_rows) >= 2 and len(parsed_rows[0]) >= 2:
+                print(f"DEBUG: Found funding table with {len(parsed_rows)} rows and {len(parsed_rows[0])} columns")
+                return {
+                    'is_table': True,
+                    'rows': parsed_rows
+                }
+        
+        return None
+
+    def _extract_funding_section(self, full_text):
+        """
+        Extract funding information from plain text (when not in table format)
+        Returns single funding sentence or phrase, not structured as table
+        """
+        # Split into lines
+        lines = full_text.split('\n')
+        
+        funding_lines = []
+        in_funding_context = False
+        funding_context_lines = 0
+        
+        for i, line in enumerate(lines):
+            clean_line = line.strip()
+            
+            # Skip very short lines and JavaScript
+            if not clean_line or len(clean_line) < 5 or 'javascript' in clean_line.lower():
+                continue
+            
+            # Check if line contains funding-related keywords
+            line_lower = clean_line.lower()
+            is_context_keyword = any(keyword in line_lower for keyword in [
+                'capped', 'up to', 'maximum', 'minimum', 'receive'
+            ])
+            
+            # Collect lines with $ in funding context
+            if '$' in clean_line:
+                print(f"DEBUG: Found $ in line: {clean_line}")
+                
+                funding_text = self._extract_funding_text(clean_line)
+                
+                if funding_text and funding_text not in funding_lines:
+                    print(f"DEBUG: Adding funding line: {funding_text}")
+                    funding_lines.append(funding_text)
+        
+        # Return as plain text (tables are handled separately)
+        if funding_lines:
+            result = '\n'.join(funding_lines)
+            print(f"DEBUG: Extracted funding as plain text: {result}")
+            return result
+        
+        print(f"DEBUG: No $ symbol found in page")
+        return None
+    
+    def _parse_funding_table(self, funding_lines):
+        """
+        Parse funding lines into table structure if they follow a table pattern
+        Returns dict with table headers and rows, or None if not a table
+        """
+        if len(funding_lines) < 3:
+            return None
+    
+    def _extract_funding_text(self, line):
+        """
+        Extract meaningful funding text from a line containing $
+        Returns just the relevant funding information
+        """
+        # Return the line as-is (likely already clean text from extracted content)
+        return line.strip() if line else None
     
     def _extract_section_text(self, full_text, keywords):
         """
@@ -373,15 +531,49 @@ class SGGrantsService:
         return f"Application deadline: {closing_date_text}. Please visit the OurSG Grants Portal for more details."
     
     def _format_funding(self, funding_min, funding_max, grant_amount_text):
-        """Format funding information"""
+        """
+        Format funding information - handles plain text, tables, and single amounts
+        """
+        if not grant_amount_text:
+            grant_amount_text = ""
+        
+        # If grant_amount_text is a dict (table structure), return as-is for template to handle
+        if isinstance(grant_amount_text, dict) and grant_amount_text.get('is_table'):
+            print(f"DEBUG: Returning table structure: {grant_amount_text}")
+            return grant_amount_text
+        
+        # If we already have meaningful grant_amount_text (string), use it as-is
+        if grant_amount_text and isinstance(grant_amount_text, str):
+            if any(keyword in grant_amount_text.lower() for keyword in ['capped', 'up to', 'maximum', 'minimum', 'are eligible', 'per', 'track', 'talent']) or '$' in grant_amount_text:
+                print(f"DEBUG: Using grant_amount_text directly: {grant_amount_text}")
+                # If it's multi-line, format with proper spacing for display
+                if '\n' in grant_amount_text:
+                    lines = grant_amount_text.split('\n')
+                    formatted_lines = []
+                    for line in lines:
+                        line = line.strip()
+                        if line:
+                            formatted_lines.append(line)
+                    return '\n'.join(formatted_lines)
+                return grant_amount_text
+        
+        # If we have funding_min and funding_max but no text description
         if funding_min and funding_max:
-            return f"Funding available: SGD {funding_min:,.0f}K to SGD {funding_max:,.0f}K. {grant_amount_text or 'Check the official grant page for more details.'}"
+            result = f"Up to SGD ${funding_max:,.0f}"
+            print(f"DEBUG: Formatted funding from min/max: {result}")
+            return result
         elif funding_max:
-            return f"Maximum funding: SGD {funding_max:,.0f}K. {grant_amount_text or 'Check the official grant page for more details.'}"
+            result = f"Up to SGD ${funding_max:,.0f}"
+            print(f"DEBUG: Formatted funding (max only): {result}")
+            return result
+        elif funding_min:
+            result = f"Minimum SGD ${funding_min:,.0f}"
+            print(f"DEBUG: Formatted funding (min only): {result}")
+            return result
         elif grant_amount_text:
-            return f"Funding information: {grant_amount_text}"
+            return grant_amount_text
         else:
-            return "Please check the OurSG Grants Portal for funding details."
+            return "Funding details not available. Please check the OurSG Grants Portal for more information."
     
     def _fetch_grant_instruction_page(self, instruction_url):
         """
@@ -701,52 +893,59 @@ class SGGrantsService:
         # "$50,000 - $100,000" -> min = 50, max = 100
         
         funding_str = str(funding_str).strip()
+        print(f"DEBUG: _parse_funding input: {funding_str}")
         
-        # Check for "Up to" format
-        if 'up to' in funding_str.lower():
+        # Check for "Up to" format or "capped at"
+        if 'up to' in funding_str.lower() or 'capped' in funding_str.lower():
             # Extract the number
-            numbers = re.findall(r'[\d,]+\.?\d*', funding_str.replace(',', ''))
+            numbers = re.findall(r'[\d,]+(?:\.\d+)?', funding_str)
             if numbers:
                 try:
-                    val = Decimal(numbers[0])
-                    # Convert to thousands
+                    val = Decimal(numbers[0].replace(',', ''))
+                    # Keep original value if less than 1000, otherwise convert to thousands
                     if val >= 1000:
                         val = val / 1000
+                    print(f"DEBUG: _parse_funding extracted max: {val}")
                     return None, val
-                except:
+                except Exception as e:
+                    print(f"DEBUG: _parse_funding error: {e}")
                     pass
         
         # Check for range format (e.g., "$50K - $100K" or "$50,000 - $100,000")
-        if '-' in funding_str or 'to' in funding_str.lower():
-            numbers = re.findall(r'[\d,]+\.?\d*', funding_str.replace(',', ''))
+        if '-' in funding_str or ' to ' in funding_str.lower():
+            numbers = re.findall(r'[\d,]+(?:\.\d+)?', funding_str)
             if len(numbers) >= 2:
                 try:
-                    min_val = Decimal(numbers[0])
-                    max_val = Decimal(numbers[1])
+                    min_val = Decimal(numbers[0].replace(',', ''))
+                    max_val = Decimal(numbers[1].replace(',', ''))
                     # Convert to thousands if needed
                     if min_val >= 1000:
                         min_val = min_val / 1000
                     if max_val >= 1000:
                         max_val = max_val / 1000
+                    print(f"DEBUG: _parse_funding extracted range: {min_val} - {max_val}")
                     return min_val, max_val
-                except:
+                except Exception as e:
+                    print(f"DEBUG: _parse_funding error: {e}")
                     pass
             elif len(numbers) == 1:
                 try:
-                    val = Decimal(numbers[0])
+                    val = Decimal(numbers[0].replace(',', ''))
                     if val >= 1000:
                         val = val / 1000
+                    print(f"DEBUG: _parse_funding extracted single: {val}")
                     return val, val
                 except:
                     pass
         
-        # Try to extract any number
-        numbers = re.findall(r'[\d,]+\.?\d*', funding_str.replace(',', ''))
+        # Try to extract any number (most lenient approach)
+        numbers = re.findall(r'[\d,]+(?:\.\d+)?', funding_str)
         if numbers:
             try:
-                val = Decimal(numbers[0])
+                val = Decimal(numbers[0].replace(',', ''))
                 if val >= 1000:
                     val = val / 1000
+                print(f"DEBUG: _parse_funding extracted any: {val}")
                 return None, val
             except:
                 pass
@@ -841,6 +1040,57 @@ class SGGrantsService:
         if len(words) >= 2:
             return ''.join([w[0].upper() for w in words[:3]])
         return agency_name[:3].upper()
+    
+    def _scrape_funding_from_new_page(self, grant_title=None, grant_value=None):
+        """
+        Scrape funding information for a specific grant from the /grants/new page
+        Extracts any lines containing "$" as funding information
+        """
+        try:
+            url = f"{self.BASE_URL}/grants/new"
+            response = self.session.get(url, timeout=30)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            page_text = soup.get_text()
+            
+            # Split text into lines for easier processing
+            lines = [line.strip() for line in page_text.split('\n') if line.strip()]
+            
+            # Look for grant by title, then extract any line with "$" near it
+            for i, line in enumerate(lines):
+                # Check if this line contains the grant title
+                if grant_title and grant_title.lower() in line.lower():
+                    print(f"DEBUG: Found grant title at line {i}: {line}")
+                    
+                    # Look in the next 10 lines for any line containing "$"
+                    for j in range(i + 1, min(i + 10, len(lines))):
+                        next_line = lines[j]
+                        
+                        # If this line contains "$", it's funding information
+                        if '$' in next_line:
+                            print(f"DEBUG: Found $ in line {j}: {next_line}")
+                            funding_text = next_line
+                            funding_min, funding_max = self._parse_funding(funding_text)
+                            if funding_min or funding_max:
+                                return {
+                                    'funding_info': funding_text,
+                                    'grant_amount_text': funding_text,
+                                    'funding_min': funding_min,
+                                    'funding_max': funding_max
+                                }
+                        
+                        # Stop if we hit another grant or section
+                        if j > i + 2 and any(heading in next_line.lower() for heading in ['open for applications', 'applications closed', 'view details']):
+                            print(f"DEBUG: Hit section boundary at line {j}, stopping")
+                            break
+            
+            print(f"DEBUG: No funding found for grant: {grant_title}")
+            return None
+            
+        except Exception as e:
+            print(f"Error scraping funding from /grants/new: {e}")
+            return None
     
     def _determine_status(self, closing_date):
         """Determine grant status based on closing date"""

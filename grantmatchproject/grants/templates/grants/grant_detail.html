@@ -949,27 +949,53 @@
                 </div>
 
                 <!-- Funding Tab -->
-                {% if grant.funding_min or grant.funding_max %}
+                {% if grant.funding_min or grant.funding_max or live_data.funding_info or live_data.grant_amount_text %}
                 <div id="tab-funding" class="tab-pane">
                     <div class="tab-pane-content">
                         <h2>How much funding can you receive?</h2>
                         {% if live_data.funding_info %}
-                        <div class="funding-info-content">
-                            {{ live_data.funding_info|linebreaks }}
-                        </div>
+                            {% if live_data.funding_info.is_table %}
+                            <!-- Display as table -->
+                            <div class="funding-table-container" style="overflow-x: auto; margin-bottom: 20px;">
+                                <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd;">
+                                    <tbody>
+                                        {% for row in live_data.funding_info.rows %}
+                                        <tr style="border-bottom: 1px solid #ddd; {% cycle 'background-color: #f9f9f9;' 'background-color: #fff;' %}">
+                                            {% for cell in row %}
+                                            <td style="padding: 12px 15px; border-right: 1px solid #ddd; font-size: 14px; {% if '$' in cell %}text-align: right; font-weight: 500;{% endif %}">
+                                                {{ cell }}
+                                            </td>
+                                            {% endfor %}
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <!-- Display as plain text -->
+                            <div class="funding-info-content" style="font-size: 16px; line-height: 1.6; color: var(--text-dark); margin-bottom: 20px;">
+                                {{ live_data.funding_info|linebreaks }}
+                            </div>
+                            {% endif %}
                         {% elif live_data.funding_details %}
-                        <div class="funding-info-content">
+                        <div class="funding-info-content" style="font-size: 16px; line-height: 1.6; color: var(--text-dark); margin-bottom: 20px;">
                             {{ live_data.funding_details|linebreaks }}
                         </div>
-                        {% endif %}
-                        <div class="funding-info" style="margin-top: 20px;">
-                            <div class="funding-amount-large" style="font-size: 24px; font-weight: 700; color: var(--primary-blue); margin-bottom: 8px;">
+                        {% elif live_data.grant_amount_text %}
+                        <div class="funding-info-content" style="font-size: 16px; line-height: 1.6; color: var(--text-dark); margin-bottom: 20px;">
+                            {{ live_data.grant_amount_text|linebreaks }}
+                        </div>
+                        {% else %}
+                        <div class="funding-info-content" style="font-size: 16px; line-height: 1.6; color: var(--text-dark); margin-bottom: 20px;">
+                            {% if grant.funding_min and grant.funding_max %}
+                                Up to SGD ${{ grant.funding_max|floatformat:0 }}K
+                            {% elif grant.funding_max %}
+                                Up to SGD ${{ grant.funding_max|floatformat:0 }}K
+                            {% else %}
                                 {{ grant.funding_range }}
-                            </div>
-                            {% if live_data.grant_amount_text %}
-                            <p style="color: var(--text-gray);">{{ live_data.grant_amount_text }}</p>
                             {% endif %}
                         </div>
+                        {% endif %}
                     </div>
                 </div>
                 {% endif %}
