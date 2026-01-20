@@ -75,7 +75,9 @@
                     <div class="match-badge match-badge-high">{{ match.match_score }}%</div>
                 </div>
                 <h3 class="grant-title">{{ match.grant.title }}</h3>
+                {% if match.grant.funding_min or match.grant.funding_max %}
                 <div class="grant-funding">{{ match.grant.funding_range }}</div>
+                {% endif %}
                 <div class="grant-deadline">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                         <rect x="3" y="2" width="10" height="12" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>

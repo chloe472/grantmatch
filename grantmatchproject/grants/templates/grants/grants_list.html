@@ -470,7 +470,9 @@
                                 {% endif %}
                             </div>
                             <h2 class="grant-title-large">{{ grant.title }}</h2>
+                            {% if grant.funding_min or grant.funding_max %}
                             <div class="grant-funding-large">{{ grant.funding_range }}</div>
+                            {% endif %}
                             <div class="grant-deadline-orange">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                     <rect x="3" y="2" width="10" height="12" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
