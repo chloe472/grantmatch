@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Granted - AI-Powered Funding{% endblock %}</title>
+    <title>{% block title %}Granted - AI-Powered Grant Matching{% endblock %}</title>
     {% load static %}
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     {% block extra_css %}{% endblock %}
@@ -14,7 +14,7 @@
         <aside class="sidebar">
             <div class="sidebar-header">
                 <h1 class="logo">Granted</h1>
-                <p class="logo-subtitle">AI-Powered Funding</p>
+                <p class="logo-subtitle">AI-Powered Grant Matching</p>
             </div>
             <nav class="sidebar-nav">
                 <a href="{% url 'grants:dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
