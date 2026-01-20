@@ -13,6 +13,7 @@ urlpatterns = [
     path('grants/', views.grants_list, name='grants_list'),
     path('grants/<int:grant_id>/', views.grant_detail, name='grant_detail'),
     path('grants/<int:grant_id>/save/', views.toggle_save_grant, name='toggle_save_grant'),
+    path('grants/bulk-unsave/', views.bulk_unsave_grants, name='bulk_unsave_grants'),
     path('grants/<int:grant_id>/start-application/', views.start_application, name='start_application'),
     path('grants/<int:grant_id>/start-application/recommended/', views.start_application_recommended, name='start_application_recommended'),
     path('saved/', views.saved_grants, name='saved_grants'),

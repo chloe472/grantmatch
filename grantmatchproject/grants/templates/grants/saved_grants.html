@@ -1,7 +1,36 @@
 {% extends 'grants/base.html' %}
 {% load static %}
 
-{% block title %}Saved Grants - Granted{% endblock %}
+{% block extra_css %}
+<style>
+    .btn-save-star {
+        background: none;
+        border: none;
+        padding: 8px;
+        cursor: pointer;
+        color: var(--text-light);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+    
+    .btn-save-star:hover {
+        background: var(--bg-gray-light);
+        color: var(--accent-yellow);
+    }
+    
+    .btn-save-star.saved {
+        color: var(--accent-yellow);
+    }
+    
+    .btn-save-star svg {
+        width: 20px;
+        height: 20px;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="saved-grants-page">
@@ -57,9 +86,9 @@
             </div>
             <div class="grant-card-actions">
                 <a href="{% url 'grants:grant_detail' match.grant.id %}" class="btn btn-primary btn-sm">View Details</a>
-                <button class="btn-icon" onclick="toggleSave({{ match.grant.id }})">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" stroke="currentColor" stroke-width="2">
-                        <path d="M10 15L5 10L6.5 8.5L10 12L13.5 8.5L15 10L10 15Z"/>
+                <button class="btn-save-star saved" onclick="toggleSave({{ match.grant.id }})">
+                    <svg viewBox="0 0 20 20" fill="currentColor" stroke="currentColor" stroke-width="2">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
                     </svg>
                 </button>
             </div>
@@ -76,15 +105,40 @@
 
 {% block extra_js %}
 <script>
+let grantsToUnsave = new Set();
+
 function toggleSave(grantId) {
-    fetch(`/grants/${grantId}/save/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-        },
-    }).then(() => {
-        location.reload();
-    });
+    const button = event.target.closest('button');
+    
+    if (button.classList.contains('saved')) {
+        // Currently saved, mark for unsaving
+        button.classList.remove('saved');
+        grantsToUnsave.add(grantId);
+    } else {
+        // Currently not saved, save immediately
+        fetch(`/grants/${grantId}/save/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+        }).then(() => {
+            button.classList.add('saved');
+            grantsToUnsave.delete(grantId);
+        });
+    }
 }
+
+// Handle page unload to actually unsave the marked grants
+window.addEventListener('beforeunload', function() {
+    if (grantsToUnsave.size > 0) {
+        // Use sendBeacon for reliable delivery during page unload
+        const data = JSON.stringify({
+            grant_ids: Array.from(grantsToUnsave),
+            action: 'unsave'
+        });
+        
+        navigator.sendBeacon('/grants/bulk-unsave/', data);
+    }
+});
 </script>
 {% endblock %}

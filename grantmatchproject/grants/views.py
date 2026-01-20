@@ -770,6 +770,37 @@ def toggle_save_grant(request, grant_id):
     return JsonResponse({'success': True, 'is_saved': is_saved})
 
 
+def bulk_unsave_grants(request):
+    """Bulk unsave grants marked for removal"""
+    if request.method == 'POST':
+        try:
+            import json
+            data = json.loads(request.body)
+            grant_ids = data.get('grant_ids', [])
+            
+            # Get user's project (create default if needed)
+            project = Project.objects.filter(user=request.user).first()
+            if not project:
+                project = Project.objects.create(
+                    user=request.user,
+                    title="My Grants",
+                    description="Default project for saved grants"
+                )
+            
+            # Unsave the specified grants
+            GrantMatch.objects.filter(
+                project=project,
+                grant_id__in=grant_ids,
+                is_saved=True
+            ).update(is_saved=False)
+            
+            return JsonResponse({'success': True})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=400)
+    
+    return JsonResponse({'success': False}, status=405)
+
+
 @login_required
 def applications_list(request):
     """List user's applications in Kanban board format"""
