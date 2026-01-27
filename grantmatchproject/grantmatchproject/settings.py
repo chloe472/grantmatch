@@ -25,12 +25,24 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-rg$+j=_qcarsbq7scak&pu+4@*$y-!#ufac273y%oqw78(%r9='
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-rg$+j=_qcarsbq7scak&pu+4@*$y-!#ufac273y%oqw78(%r9=')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+
+# CSRF and Security Settings
+CSRF_TRUSTED_ORIGINS = [
+    'https://grantmatch-405803716705.asia-southeast1.run.app',
+    'https://*.run.app',
+]
+
+CSRF_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_HTTPONLY = False
+SESSION_COOKIE_SECURE = not DEBUG
+SECURE_SSL_REDIRECT = False  # Disabled to avoid redirect loops
+
 
 
 # Application definition
@@ -47,6 +59,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Add WhiteNoise for static files
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -78,12 +91,32 @@ WSGI_APPLICATION = 'grantmatchproject.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Use Cloud SQL in production, SQLite in development
+if os.getenv('USE_CLOUD_SQL') == 'True':
+    # Production: Cloud SQL PostgreSQL via Cloud Run connection
+    INSTANCE_CONN_NAME = os.getenv('CLOUD_SQL_CONNECTION_NAME')
+    if not INSTANCE_CONN_NAME:
+        raise RuntimeError("CLOUD_SQL_CONNECTION_NAME not set")
+
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('DB_NAME', 'grantmatchdb'),
+            'USER': os.getenv('DB_USER', 'postgres'),
+            'PASSWORD': os.getenv('DB_PASSWORD'),
+            'HOST': f'/cloudsql/{INSTANCE_CONN_NAME}',  # Cloud Run/Jobs socket path
+            'PORT': '',
+            'CONN_MAX_AGE': 600,
+        }
     }
-}
+else:
+    # Development: SQLite
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
@@ -104,6 +137,14 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Static files - WhiteNoise will serve them in production
+STATIC_URL = 'static/'
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
 
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
