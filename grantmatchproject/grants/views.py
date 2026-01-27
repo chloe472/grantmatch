@@ -10,8 +10,7 @@ import json
 from .models import Grant, Project, GrantMatch, Application, Notification, Agency, UserProfile
 from django.contrib.auth.models import User
 from .services import SGGrantsService
-from .gemini_service import GeminiMatchingService
-from django.conf import settings
+from .matching import compute_match_score
 
 
 def register(request):
@@ -253,105 +252,21 @@ def project_edit(request, project_id):
 
 
 def calculate_matches_for_project(project):
-    """Calculate grant matches for a project using Gemini AI matching"""
-    grants = Grant.objects.filter(status='open').select_related('agency')
-    
-    # Initialize Gemini service if API key is available
-    use_gemini = bool(getattr(settings, 'GEMINI_API_KEY', ''))
-    gemini_service = None
-    
-    if use_gemini:
-        try:
-            gemini_service = GeminiMatchingService()
-            print(f"Using Gemini AI for matching project: {project.title}")
-        except Exception as e:
-            print(f"Failed to initialize Gemini service: {e}")
-            print("Falling back to simple matching logic")
-            use_gemini = False
-    
-    # Prepare project data
-    project_data = {
-        'title': project.title,
-        'description': project.description,
-        'focus_area': project.focus_area,
-        'budget_required_min': float(project.budget_required_min) if project.budget_required_min else None,
-        'budget_required_max': float(project.budget_required_max) if project.budget_required_max else None,
-        'duration_years': project.duration_years,
-        'kpis': project.kpis,
-        'service_outcomes': project.service_outcomes,
-        'beneficiary_types': project.beneficiary_types or [],
-        'interested_in': project.interested_in or [],
-        'need_support_for': project.need_support_for or [],
-        'want_support_from': project.want_support_from or [],
-    }
-    
-    matches_created = 0
-    matches_updated = 0
-    
+    """Calculate grant matches for a project using deterministic scoring logic"""
+    grants = Grant.objects.filter(status='open')
+
     for grant in grants:
-        try:
-            if use_gemini and gemini_service:
-                # Use Gemini AI for intelligent matching
-                grant_data = {
-                    'title': grant.title,
-                    'description': grant.description,
-                    'agency_name': grant.agency.name,
-                    'agency_acronym': grant.agency.acronym,
-                    'funding_min': float(grant.funding_min) if grant.funding_min else None,
-                    'funding_max': float(grant.funding_max) if grant.funding_max else None,
-                    'duration_years': grant.duration_years,
-                    'eligibility_criteria': grant.eligibility_criteria,
-                    'closing_date': str(grant.closing_date) if grant.closing_date else None,
-                }
-                
-                score, reasons = gemini_service.match_project_to_grant(project_data, grant_data)
-                
-            else:
-                # Fallback to simple matching logic
-                score = 0
-                reasons = []
-                
-                if project.focus_area and project.focus_area.lower() in grant.description.lower():
-                    score += 30
-                    reasons.append(f"Perfect alignment with {project.focus_area} programs")
-                
-                if project.budget_required_min and grant.funding_min:
-                    if grant.funding_min <= project.budget_required_max and grant.funding_max >= project.budget_required_min:
-                        score += 25
-                        reasons.append("Budget range matches your requirements")
-                
-                if project.kpis and grant.description:
-                    score += 20
-                    reasons.append("KPIs align with your service outcomes")
-                
-                if project.duration_years and grant.duration_years:
-                    score += 15
-                    reasons.append("Timeline aligns with project scope")
-                
-                # Add some base score for open grants
-                score += 10
-            
-            # Create/update matches for all grants (no minimum threshold)
-            match, created = GrantMatch.objects.update_or_create(
+        score, reasons = compute_match_score(project, grant)
+
+        if score >= 70:
+            GrantMatch.objects.update_or_create(
                 project=project,
                 grant=grant,
                 defaults={
-                    'match_score': min(score, 100),
-                    'match_reasons': reasons[:3] if reasons else ["Grant opportunity"]
+                    'match_score': score,
+                    'match_reasons': reasons[:3],
                 }
             )
-            
-            if created:
-                matches_created += 1
-            else:
-                matches_updated += 1
-                    
-        except Exception as e:
-            print(f"Error matching grant {grant.id} ({grant.title}): {e}")
-            continue
-    
-    print(f"Matching complete: {matches_created} new matches, {matches_updated} updated matches")
-    return matches_created + matches_updated
 
 
 @login_required

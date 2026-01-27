@@ -38,12 +38,12 @@ def compute_match_score(project, grant) -> Tuple[int, List[str]]:
         beneficiary_set = {str(x).lower() for x in beneficiary_types if str(x).strip()}
     scores["beneficiaries"] = overlap_score(beneficiary_set, normalize(getattr(grant, "description", "")))
 
-    budget_min = getattr(project, "budget_min", None)
+    budget_min = getattr(project, "budget_required_min", None)
     funding_max = getattr(grant, "funding_max", None)
     scores["budget"] = 1.0 if (budget_min and funding_max and budget_min <= funding_max) else 0.5
 
     closing_date = getattr(grant, "closing_date", None)
-    start_date = getattr(project, "start_date", None)
+    start_date = getattr(project, "project_start_date", None)
     if closing_date and start_date:
         scores["timeline"] = 1.0 if start_date <= closing_date else 0.0
     else:
