@@ -24,6 +24,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project files
 COPY . .
 
+# Make entrypoint script executable
+RUN chmod +x entrypoint.sh
+
 # Collect static files
 RUN python manage.py collectstatic --noinput
 
@@ -34,5 +37,5 @@ USER appuser
 # Expose port
 EXPOSE 8080
 
-# Run gunicorn
-CMD ["sh", "-c", "exec gunicorn --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 0 --max-requests 1000 --max-requests-jitter 100 grantmatchproject.wsgi:application"]
+# Run entrypoint script
+CMD ["./entrypoint.sh"]
