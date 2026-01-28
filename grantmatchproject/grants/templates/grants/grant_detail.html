@@ -1238,7 +1238,11 @@
                 <div class="similar-grant-card">
                     <div class="similar-grant-header">
                         <div class="similar-grant-icon">
-                            {{ similar.agency.acronym|slice:":1" }}
+                            {% if similar.agency.logo_url %}
+                                <img src="{{ similar.agency.logo_url }}" alt="{{ similar.agency.acronym }}" style="width: 100%; height: 100%; object-fit: contain; border-radius: 6px;">
+                            {% else %}
+                                {{ similar.agency.acronym|slice:":1" }}
+                            {% endif %}
                         </div>
                         <div class="similar-grant-info">
                             <h3>{{ similar.title }}</h3>
