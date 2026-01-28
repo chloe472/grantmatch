@@ -287,8 +287,8 @@ class SGGrantsService:
             'about this grant', 'about the grant', 'the aim', 'about',
             'who can apply', 'who is eligible', 'eligibility',
             'when to apply', 'when can i apply', 'application is open', 'application timeline',
-            'how much funding', 'how much funding can you receive', 'funding amount', 'grant amount', 'up to s\$',
-            'how to apply', 'application process', 'completing the grant', 'how to apply\?',
+            'how much funding', 'how much funding can you receive', 'funding amount', 'grant amount', r'up to s\$',
+            'how to apply', 'application process', 'completing the grant', r'how to apply\?',
             'documents required', 'required documents', 'supporting documents', 'documents required for application'
         ]
 

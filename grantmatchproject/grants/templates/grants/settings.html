@@ -4,52 +4,838 @@
 {% block title %}Settings - Granted{% endblock %}
 
 {% block content %}
-<div class="settings-page">
-    <div class="page-header">
-        <h1>Settings</h1>
-    </div>
+<style>
+.settings-container {
+    display: flex;
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
 
-    <div class="form-container">
-        <form method="post">
+.settings-sidebar {
+    width: 250px;
+    flex-shrink: 0;
+}
+
+.settings-menu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.settings-menu li {
+    margin-bottom: 0.5rem;
+}
+
+.settings-menu a {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    border-radius: 8px;
+    color: #666;
+    text-decoration: none;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+    border-left: 3px solid transparent;
+}
+
+.settings-menu a:hover {
+    background-color: #f0f2f5;
+    color: #333;
+}
+
+.settings-menu a.active {
+    background-color: #f0f8ff;
+    color: #0066cc;
+    border-left-color: #0066cc;
+    font-weight: 500;
+}
+
+.settings-menu svg {
+    width: 20px;
+    height: 20px;
+}
+
+.settings-content {
+    flex: 1;
+}
+
+.settings-header {
+    margin-bottom: 2rem;
+}
+
+.settings-header h1 {
+    font-size: 1.75rem;
+    margin-bottom: 0.5rem;
+    color: #333;
+}
+
+.settings-header p {
+    color: #666;
+    font-size: 0.95rem;
+}
+
+.settings-form {
+    background: white;
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.form-section {
+    margin-bottom: 2.5rem;
+}
+
+.form-section:last-child {
+    margin-bottom: 0;
+}
+
+.form-section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #eee;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.form-row.full {
+    grid-template-columns: 1fr;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+}
+
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group input[type="url"],
+.form-group input[type="number"],
+.form-group input[type="tel"],
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #0066cc;
+    box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.profile-picture-section {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.profile-picture {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 120px;
+    height: 120px;
+    background: linear-gradient(135deg, #ff6b35 0%, #ff8c42 100%);
+    border-radius: 8px;
+    color: white;
+    font-size: 3rem;
+    font-weight: 600;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.profile-picture-upload {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background: white;
+    border: 2px solid #ff6b35;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #ff6b35;
+}
+
+.profile-picture-upload input {
+    display: none;
+}
+
+.profile-picture-info h3 {
+    margin: 0 0 0.5rem 0;
+    color: #333;
+}
+
+.profile-picture-info p {
+    color: #666;
+    font-size: 0.9rem;
+    margin: 0.25rem 0;
+}
+
+.profile-picture-button {
+    display: inline-block;
+    background: #0066cc;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    margin-top: 0.75rem;
+    cursor: pointer;
+    border: none;
+}
+
+.profile-picture-button:hover {
+    background: #0052a3;
+}
+
+.notification-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    margin-bottom: 0.75rem;
+}
+
+.notification-item-text h4 {
+    margin: 0 0 0.25rem 0;
+    color: #333;
+    font-size: 0.95rem;
+}
+
+.notification-item-text p {
+    margin: 0;
+    color: #666;
+    font-size: 0.85rem;
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 28px;
+}
+
+.toggle-switch input {
+    display: none;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.3s;
+    border-radius: 28px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 22px;
+    width: 22px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+    background-color: #0066cc;
+}
+
+input:checked + .toggle-slider:before {
+    transform: translateX(22px);
+}
+
+.category-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.category-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border: 2px solid #0066cc;
+    border-radius: 20px;
+    color: #0066cc;
+    background: #f0f8ff;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+}
+
+.category-tag:hover {
+    background: #0066cc;
+    color: white;
+}
+
+.category-tag input[type="checkbox"] {
+    display: none;
+}
+
+.category-tag.checked {
+    background: #0066cc;
+    color: white;
+}
+
+.threshold-select {
+    width: 100%;
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2.5rem;
+    padding-top: 2rem;
+    border-top: 1px solid #eee;
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: #0066cc;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #0052a3;
+}
+
+.btn-secondary {
+    background: #f0f2f5;
+    color: #333;
+}
+
+.btn-secondary:hover {
+    background: #e4e6eb;
+}
+
+.funding-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+@media (max-width: 768px) {
+    .settings-container {
+        flex-direction: column;
+    }
+    
+    .settings-sidebar {
+        width: 100%;
+    }
+    
+    .settings-menu {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    .settings-menu li {
+        margin-bottom: 0;
+        flex: 1;
+        min-width: 150px;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-row.full {
+        grid-template-columns: 1fr;
+    }
+    
+    .funding-row {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<div class="settings-container">
+    <!-- Sidebar Navigation -->
+    <aside class="settings-sidebar">
+        <ul class="settings-menu">
+            <li>
+                <a href="?tab=organization" class="{% if tab == 'organization' %}active{% endif %}">
+                    <svg fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/>
+                    </svg>
+                    Organization
+                </a>
+            </li>
+            <li>
+                <a href="?tab=profile" class="{% if tab == 'profile' %}active{% endif %}">
+                    <svg fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                    </svg>
+                    Profile
+                </a>
+            </li>
+            <li>
+                <a href="?tab=notifications" class="{% if tab == 'notifications' %}active{% endif %}">
+                    <svg fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V2c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 3.36 6 5.92 6 9v5l-2 2v1h16v-1l-2-2z"/>
+                    </svg>
+                    Notifications
+                </a>
+            </li>
+            <li>
+                <a href="?tab=ai" class="{% if tab == 'ai' %}active{% endif %}">
+                    <svg fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+                    </svg>
+                    AI Preferences
+                </a>
+            </li>
+            <li>
+                <a href="?tab=security" class="{% if tab == 'security' %}active{% endif %}">
+                    <svg fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+                    </svg>
+                    Privacy & Security
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="settings-content">
+        <form method="post" class="settings-form">
             {% csrf_token %}
+
+            <!-- Organization Tab -->
+            {% if tab == 'organization' %}
+            <div class="settings-header">
+                <h1>Organization Information</h1>
+                <p>Manage your organization's profile and contact details</p>
+            </div>
+
             <div class="form-section">
-                <h2>Personal Information</h2>
+                <div class="profile-picture-section">
+                    <div class="profile-picture">
+                        T
+                        <label class="profile-picture-upload">
+                            <input type="file" accept="image/*">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 5v14M5 12h14"/>
+                            </svg>
+                        </label>
+                    </div>
+                    <div class="profile-picture-info">
+                        <h3>Organization Logo</h3>
+                        <p>Update your organization's logo. Recommended size: 256x256px</p>
+                        <button type="button" class="profile-picture-button">Upload New Logo</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
                 <div class="form-row">
                     <div class="form-group">
-                        <label>First Name</label>
-                        <input type="text" name="first_name" value="{{ user.first_name }}" class="form-control">
+                        <label for="organization_name">Organization Name *</label>
+                        <input type="text" id="organization_name" name="organization_name" value="{{ profile.organization_name }}" required>
                     </div>
                     <div class="form-group">
-                        <label>Last Name</label>
-                        <input type="text" name="last_name" value="{{ user.last_name }}" class="form-control">
+                        <label for="organization_type">Organization Type *</label>
+                        <select id="organization_type" name="organization_type">
+                            <option value="">Select Type</option>
+                            {% for value, label in organization_type_choices %}
+                            <option value="{{ value }}" {% if profile.organization_type == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>Email</label>
-                    <input type="email" name="email" value="{{ user.email }}" class="form-control">
+
+                <div class="form-group form-row full">
+                    <div>
+                        <label for="organization_registration">Registration Number</label>
+                        <input type="text" id="organization_registration" name="organization_registration" value="{{ profile.organization_registration }}">
+                    </div>
+                </div>
+
+                <div class="form-group form-row full">
+                    <div>
+                        <label for="organization_description">Organization Description</label>
+                        <textarea id="organization_description" name="organization_description">{{ profile.organization_description }}</textarea>
+                    </div>
+                </div>
+
+                <div class="form-section-title" style="margin-top: 2rem;">Contact Information</div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="organization_website">Website</label>
+                        <input type="url" id="organization_website" name="organization_website" value="{{ profile.organization_website }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="organization_email">Organization Email</label>
+                        <input type="email" id="organization_email" name="organization_email" value="{{ profile.organization_email }}">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="organization_phone">Phone Number</label>
+                        <input type="tel" id="organization_phone" name="organization_phone" value="{{ profile.organization_phone }}">
+                    </div>
+                    <div></div>
+                </div>
+
+                <div class="form-group form-row full">
+                    <div>
+                        <label for="organization_address">Address</label>
+                        <textarea id="organization_address" name="organization_address" style="min-height: 80px;">{{ profile.organization_address }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Tab -->
+            {% elif tab == 'profile' %}
+            <div class="settings-header">
+                <h1>Personal Information</h1>
+                <p>Manage your personal profile and account settings</p>
+            </div>
+
+            <div class="form-section">
+                <div class="profile-picture-section">
+                    <div class="profile-picture" style="background: linear-gradient(135deg, #ff6b35 0%, #ff8c42 100%);">
+                        ST
+                        <label class="profile-picture-upload">
+                            <input type="file" accept="image/*">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="1"></circle>
+                                <path d="M12 8v4m0 4v0"></path>
+                            </svg>
+                        </label>
+                    </div>
+                    <div class="profile-picture-info">
+                        <h3>Profile Picture</h3>
+                        <p>Update your profile photo. Recommended size: 256x256px</p>
+                        <button type="button" class="profile-picture-button">Upload New Photo</button>
+                    </div>
                 </div>
             </div>
 
             <div class="form-section">
-                <h2>Organization Information</h2>
-                <div class="form-group">
-                    <label>Organization Name</label>
-                    <input type="text" name="organization_name" value="{{ profile.organization_name }}" class="form-control">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="first_name">Full Name *</label>
+                        <input type="text" id="first_name" name="first_name" value="{{ user.first_name }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="last_name">Role / Position</label>
+                        <input type="text" id="last_name" name="last_name" value="{{ user.last_name }}">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Organization Type</label>
-                    <input type="text" name="organization_type" value="{{ profile.organization_type }}" class="form-control">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="email">Email Address *</label>
+                        <input type="email" id="email" name="email" value="{{ user.email }}" required>
+                    </div>
+                    <div></div>
                 </div>
-                <div class="form-group">
-                    <label>Bio</label>
-                    <textarea name="bio" rows="4" class="form-control">{{ profile.bio }}</textarea>
+
+                <div class="form-section-title" style="margin-top: 2rem;">Security</div>
+
+                <div class="form-group" style="padding: 1rem; background: #f9f9f9; border-radius: 4px; border-left: 4px solid #0066cc;">
+                    <label style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0;">
+                        <div>
+                            <strong style="display: block; margin-bottom: 0.25rem;">Password</strong>
+                            <span style="color: #666; font-size: 0.85rem;">Last changed 3 months ago</span>
+                        </div>
+                        <button type="button" class="btn btn-secondary" style="margin: 0;">Change Password</button>
+                    </label>
                 </div>
             </div>
 
+            <!-- Notifications Tab -->
+            {% elif tab == 'notifications' %}
+            <div class="settings-header">
+                <h1>Notification Preferences</h1>
+                <p>Control how and when you receive notifications</p>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-title">Push Notifications</div>
+
+                <div class="notification-item">
+                    <div class="notification-item-text">
+                        <h4>Email Notifications</h4>
+                        <p>Receive notifications via email</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="notify_email" {% if profile.notify_email %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="notification-item">
+                    <div class="notification-item-text">
+                        <h4>New Grant Alerts</h4>
+                        <p>Get notified when new matching grants are available</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="notify_new_grants" {% if profile.notify_new_grants %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="notification-item">
+                    <div class="notification-item-text">
+                        <h4>Deadline Reminders</h4>
+                        <p>Reminders for upcoming grant application deadlines</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="notify_deadline_reminders" {% if profile.notify_deadline_reminders %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="notification-item">
+                    <div class="notification-item-text">
+                        <h4>Application Updates</h4>
+                        <p>Updates on your grant application status</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="notify_application_updates" {% if profile.notify_application_updates %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="notification-item">
+                    <div class="notification-item-text">
+                        <h4>Weekly Digest</h4>
+                        <p>Summary of activities and opportunities every week</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="notify_weekly_digest" {% if profile.notify_weekly_digest %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-title">Notification Thresholds</div>
+                <label>Minimum Match Score for Alerts</label>
+                <p style="color: #666; font-size: 0.9rem; margin-bottom: 0.75rem;">Only receive notifications for grants matching above this score</p>
+                <select name="notification_threshold" class="threshold-select">
+                    {% for value, label in threshold_choices %}
+                    <option value="{{ value }}" {% if profile.notification_threshold == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- AI Preferences Tab -->
+            {% elif tab == 'ai' %}
+            <div class="settings-header">
+                <h1>AI & Matching Preferences</h1>
+                <p>Customize how AI assists you in finding and applying for grants</p>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-title">AI Features</div>
+
+                <div class="notification-item">
+                    <div class="notification-item-text">
+                        <h4>AI-Powered Grant Suggestions</h4>
+                        <p>Get personalized grant recommendations based on your projects</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="ai_suggestions_enabled" {% if profile.ai_suggestions_enabled %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="notification-item">
+                    <div class="notification-item-text">
+                        <h4>Automatic Grant Matching</h4>
+                        <p>Automatically match your projects with relevant grants</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="ai_auto_matching" {% if profile.ai_auto_matching %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="notification-item">
+                    <div class="notification-item-text">
+                        <h4>Proposal Writing Assistance</h4>
+                        <p>Get AI-generated content suggestions for your proposals</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="ai_proposal_assistance" {% if profile.ai_proposal_assistance %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="notification-item">
+                    <div class="notification-item-text">
+                        <h4>Smart Deadline Alerts</h4>
+                        <p>AI-optimized reminders based on application complexity</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="ai_deadline_alerts" {% if profile.ai_deadline_alerts %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-title">Preferred Grant Categories</div>
+                <p style="color: #666; font-size: 0.9rem; margin-bottom: 1rem;">Help AI prioritize grants in these categories</p>
+                <div class="category-tags">
+                    {% for category in grant_categories %}
+                    <label class="category-tag {% if category in profile.preferred_categories %}checked{% endif %}">
+                        <input type="checkbox" name="preferred_categories" value="{{ category }}" {% if category in profile.preferred_categories %}checked{% endif %}>
+                        {{ category }}
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-title">Matching Parameters</div>
+                <p style="color: #666; font-size: 0.9rem; margin-bottom: 1rem;">Preferred Funding Range (SGD)</p>
+                <div class="funding-row">
+                    <div class="form-group">
+                        <input type="number" name="funding_min" placeholder="Minimum" value="{{ profile.funding_min|default:'' }}">
+                    </div>
+                    <div class="form-group">
+                        <input type="number" name="funding_max" placeholder="Maximum" value="{{ profile.funding_max|default:'' }}">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="typical_duration">Typical Project Duration</label>
+                    <select id="typical_duration" name="typical_duration">
+                        {% for value, label in duration_choices %}
+                        <option value="{{ value }}" {% if profile.typical_duration == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Security Tab -->
+            {% elif tab == 'security' %}
+            <div class="settings-header">
+                <h1>Privacy & Security</h1>
+                <p>Manage your privacy settings and security preferences</p>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-title">Data Management</div>
+                
+                <div class="form-group">
+                    <label style="font-weight: 600; margin-bottom: 0.5rem; display: block;">Data Retention Period</label>
+                    <p style="color: #666; font-size: 0.9rem; margin-bottom: 0.75rem;">How long to keep your application history</p>
+                    <select name="data_retention" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="1_year">1 year</option>
+                        <option value="2_years">2 years</option>
+                        <option value="3_years">3 years</option>
+                        <option value="indefinite">Indefinitely</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div style="padding: 1.5rem; background: #fff5f5; border: 1px solid #fecaca; border-radius: 8px;">
+                    <h3 style="color: #dc2626; font-size: 1rem; margin: 0 0 0.5rem 0;">Delete Account</h3>
+                    <p style="color: #991b1b; font-size: 0.9rem; margin: 0 0 1rem 0;">Permanently delete your account and all associated data. This action cannot be undone.</p>
+                    <button type="button" class="btn" style="background: #dc2626; color: white; padding: 0.5rem 1rem;" onclick="if(confirm('Are you sure you want to delete your account? This action cannot be undone.')) { alert('Account deletion feature coming soon'); }">
+                        Delete Account
+                    </button>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-title">Connected Services</div>
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem; border: 1px solid #eee; border-radius: 8px;">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <div style="width: 48px; height: 48px; background: #f0f8ff; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0066cc" stroke-width="2">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                                <polyline points="22,6 12,13 2,6"></polyline>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 style="margin: 0 0 0.25rem 0; color: #333; font-size: 0.95rem;">Google Account</h4>
+                            <p style="margin: 0; color: #666; font-size: 0.85rem;">{{ user.email }}</p>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-secondary">Disconnect</button>
+                </div>
+            </div>
+
+            {% endif %}
+
+            <!-- Form Actions -->
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary">Save Changes</button>
+                <button type="button" class="btn btn-secondary">Cancel</button>
             </div>
         </form>
-    </div>
+    </main>
 </div>
+
+<script>
+// Category tag selection
+document.querySelectorAll('.category-tag input[type="checkbox"]').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        this.parentElement.classList.toggle('checked');
+    });
+});
+</script>
 {% endblock %}

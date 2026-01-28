@@ -76,12 +76,64 @@ class Grant(models.Model):
 
 class UserProfile(models.Model):
     """Extended user profile information"""
+    ORGANIZATION_TYPE_CHOICES = [
+        ('npo', 'Non-Profit Organization'),
+        ('social_enterprise', 'Social Enterprise'),
+        ('government', 'Government Agency'),
+        ('academic', 'Academic Institution'),
+        ('corporate', 'Corporate/Business'),
+        ('individual', 'Individual'),
+    ]
+    
+    NOTIFICATION_THRESHOLD_CHOICES = [
+        ('70', '70% - Good match'),
+        ('80', '80% - High relevance only'),
+        ('90', '90% - Excellent match only'),
+    ]
+    
+    DURATION_CHOICES = [
+        ('6_months', '6 months'),
+        ('12_months', '12 months'),
+        ('18_months', '18 months'),
+        ('24_months', '24 months'),
+        ('36_months', '36 months'),
+    ]
+    
+    # Personal Info
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     organization_name = models.CharField(max_length=200, blank=True)
-    organization_type = models.CharField(max_length=100, blank=True)
+    organization_type = models.CharField(max_length=50, choices=ORGANIZATION_TYPE_CHOICES, blank=True)
+    organization_registration = models.CharField(max_length=100, blank=True, help_text="Registration number")
+    organization_description = models.TextField(blank=True)
+    organization_website = models.URLField(blank=True)
+    organization_email = models.EmailField(blank=True)
+    organization_phone = models.CharField(max_length=20, blank=True)
+    organization_address = models.TextField(blank=True)
     bio = models.TextField(blank=True)
     avatar_initials = models.CharField(max_length=2, blank=True)
+    
+    # Notification Preferences
+    notify_email = models.BooleanField(default=True, help_text="Receive notifications via email")
+    notify_new_grants = models.BooleanField(default=True, help_text="Notify on new matching grants")
+    notify_deadline_reminders = models.BooleanField(default=True, help_text="Deadline reminder notifications")
+    notify_application_updates = models.BooleanField(default=True, help_text="Application status updates")
+    notify_weekly_digest = models.BooleanField(default=False, help_text="Weekly digest of activities")
+    notification_threshold = models.CharField(max_length=5, choices=NOTIFICATION_THRESHOLD_CHOICES, default='70')
+    
+    # AI Preferences
+    ai_suggestions_enabled = models.BooleanField(default=True, help_text="AI-powered grant suggestions")
+    ai_auto_matching = models.BooleanField(default=True, help_text="Automatic grant matching")
+    ai_proposal_assistance = models.BooleanField(default=True, help_text="AI proposal writing assistance")
+    ai_deadline_alerts = models.BooleanField(default=True, help_text="Smart deadline alerts")
+    
+    # Matching Preferences
+    preferred_categories = models.JSONField(default=list, help_text="Preferred grant categories")
+    funding_min = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    funding_max = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    typical_duration = models.CharField(max_length=20, choices=DURATION_CHOICES, default='12_months')
+    
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
     def __str__(self):
         return f"{self.user.username} - {self.organization_name}"

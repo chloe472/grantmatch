@@ -34,54 +34,62 @@ def register(request):
 @login_required
 def dashboard(request):
     """Main dashboard view"""
-    user = request.user
-    
-    # Get or create user profile
-    profile, _ = UserProfile.objects.get_or_create(
-        user=user,
-        defaults={'avatar_initials': user.username[:2].upper() if len(user.username) >= 2 else user.username[0].upper()}
-    )
-    
-    # Get user's projects
-    projects = Project.objects.filter(user=user)
-    
-    # Get recent matches (top 3)
-    recent_matches = GrantMatch.objects.filter(project__user=user).select_related('grant', 'grant__agency')[:3]
-    
-    # Get upcoming deadlines (grants closing in next 120 days)
-    upcoming_deadlines = Grant.objects.filter(
-        status='open',
-        closing_date__gte=timezone.now().date(),
-        closing_date__lte=timezone.now().date() + timedelta(days=120)
-    ).order_by('closing_date')[:3]
-    
-    # Get unread notifications count
-    unread_notifications = Notification.objects.filter(user=user, is_read=False).count()
-    
-    # Get new grants matching user's projects (if any)
-    new_matching_grants = []
-    if projects.exists():
-        # Find grants that match user's project focus areas
-        for project in projects[:1]:  # Check first project
-            matching_grants = Grant.objects.filter(
-                status='open',
-                match_score__gte=80
-            ).exclude(
-                matches__project=project
-            )[:2]
-            new_matching_grants.extend(matching_grants)
-    
-    context = {
-        'user': user,
-        'profile': profile,
-        'projects': projects,
-        'recent_matches': recent_matches,
-        'upcoming_deadlines': upcoming_deadlines,
-        'unread_notifications': unread_notifications,
-        'new_matching_grants': new_matching_grants[:2],
-    }
-    
-    return render(request, 'grants/dashboard.html', context)
+    try:
+        user = request.user
+        
+        # Get or create user profile
+        profile, _ = UserProfile.objects.get_or_create(
+            user=user,
+            defaults={'avatar_initials': user.username[:2].upper() if len(user.username) >= 2 else user.username[0].upper()}
+        )
+        
+        # Get user's projects
+        projects = Project.objects.filter(user=user)
+        
+        # Get recent matches (top 3)
+        recent_matches = GrantMatch.objects.filter(project__user=user).select_related('grant', 'grant__agency')[:3]
+        
+        # Get upcoming deadlines (grants closing in next 120 days)
+        upcoming_deadlines = Grant.objects.filter(
+            status='open',
+            closing_date__gte=timezone.now().date(),
+            closing_date__lte=timezone.now().date() + timedelta(days=120)
+        ).order_by('closing_date')[:3]
+        
+        # Get unread notifications count
+        unread_notifications = Notification.objects.filter(user=user, is_read=False).count()
+        
+        # Get new grants matching user's projects (if any)
+        new_matching_grants = []
+        if projects.exists():
+            # Find grants that match user's project focus areas
+            for project in projects[:1]:  # Check first project
+                matching_grants = Grant.objects.filter(
+                    status='open',
+                    match_score__gte=80
+                ).exclude(
+                    matches__project=project
+                )[:2]
+                new_matching_grants.extend(matching_grants)
+        
+        context = {
+            'user': user,
+            'profile': profile,
+            'projects': projects,
+            'recent_matches': recent_matches,
+            'upcoming_deadlines': upcoming_deadlines,
+            'unread_notifications': unread_notifications,
+            'new_matching_grants': new_matching_grants[:2],
+        }
+        
+        return render(request, 'grants/dashboard.html', context)
+    except Exception as e:
+        import traceback
+        error_msg = f"Dashboard error: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg)
+        # Return a simple error page
+        from django.http import HttpResponse
+        return HttpResponse(f"<h1>Error</h1><p>{str(e)}</p><pre>{traceback.format_exc()}</pre>", status=500)
 
 
 @login_required
@@ -271,91 +279,23 @@ def calculate_matches_for_project(project):
 
 @login_required
 def project_matches(request, project_id):
-    """Display matching grants for a project with scores calculated using Gemini AI"""
+    """Display matching grants for a project with scores calculated using rule-based matching"""
     project = get_object_or_404(Project, id=project_id, user=request.user)
     
     # Get all open grants
     grants = Grant.objects.filter(status='open').select_related('agency')
     
-    # Initialize Gemini service
-    use_gemini = bool(getattr(settings, 'GEMINI_API_KEY', ''))
-    gemini_service = None
-    
-    if use_gemini:
-        try:
-            gemini_service = GeminiMatchingService()
-            print(f"✓ Gemini AI service initialized successfully")
-        except Exception as e:
-            print(f"✗ Failed to initialize Gemini service: {e}")
-            use_gemini = False
-    else:
-        print(f"⚠ No Gemini API key configured - using fallback matching")
-    
-    # Prepare project data
-    project_data = {
-        'title': project.title,
-        'description': project.description,
-        'focus_area': project.focus_area,
-        'budget_required_min': float(project.budget_required_min) if project.budget_required_min else None,
-        'budget_required_max': float(project.budget_required_max) if project.budget_required_max else None,
-        'duration_years': project.duration_years,
-        'kpis': project.kpis,
-        'service_outcomes': project.service_outcomes,
-        'beneficiary_types': project.beneficiary_types or [],
-        'interested_in': project.interested_in or [],
-        'need_support_for': project.need_support_for or [],
-        'want_support_from': project.want_support_from or [],
-    }
-    
-    # Calculate matches for all grants
+    # Calculate matches for all grants using rule-based matching
     matching_grants = []
     
     for grant in grants:
         try:
-            if use_gemini and gemini_service:
-                # Use Gemini AI for intelligent matching
-                grant_data = {
-                    'title': grant.title,
-                    'description': grant.description,
-                    'agency_name': grant.agency.name,
-                    'agency_acronym': grant.agency.acronym,
-                    'funding_min': float(grant.funding_min) if grant.funding_min else None,
-                    'funding_max': float(grant.funding_max) if grant.funding_max else None,
-                    'duration_years': grant.duration_years,
-                    'eligibility_criteria': grant.eligibility_criteria,
-                    'closing_date': str(grant.closing_date) if grant.closing_date else None,
-                }
-                
-                score, reasons = gemini_service.match_project_to_grant(project_data, grant_data)
-                
-            else:
-                # Fallback to simple matching logic
-                score = 0
-                reasons = []
-                
-                if project.focus_area and project.focus_area.lower() in grant.description.lower():
-                    score += 30
-                    reasons.append(f"Perfect alignment with {project.focus_area} programs")
-                
-                if project.budget_required_min and grant.funding_min:
-                    if grant.funding_min <= project.budget_required_max and grant.funding_max >= project.budget_required_min:
-                        score += 25
-                        reasons.append("Budget range matches your requirements")
-                
-                if project.kpis and grant.description:
-                    score += 20
-                    reasons.append("KPIs align with your service outcomes")
-                
-                if project.duration_years and grant.duration_years:
-                    score += 15
-                    reasons.append("Timeline aligns with project scope")
-                
-                score += 10
+            score, reasons = compute_match_score(project, grant)
             
             # Include all grants with calculated scores (display all matches)
             matching_grants.append({
                 'grant': grant,
-                'match_score': min(score, 100),
+                'match_score': score,
                 'match_reasons': reasons[:3] if reasons else ["Grant opportunity"]
             })
                 
@@ -366,7 +306,7 @@ def project_matches(request, project_id):
     # Sort by match score (highest first)
     matching_grants.sort(key=lambda x: x['match_score'], reverse=True)
     
-    print(f"✓ Processed {len(matching_grants)} grants - Using {'Gemini AI' if use_gemini else 'Fallback matching'}")
+    print(f"✓ Processed {len(matching_grants)} grants using rule-based matching")
     
     # Get user's saved grants for the star icon
     saved_grant_ids = set(
@@ -390,7 +330,25 @@ def project_matches(request, project_id):
 @login_required
 def grants_list(request):
     """Browse all grants with enhanced filtering"""
-    grants = Grant.objects.select_related('agency').all()
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Use select_related but don't exclude grants without agencies
+        grants = Grant.objects.select_related('agency').all()
+        total_grants_count = grants.count()
+        logger.info(f"Total grants in database: {total_grants_count}")
+        
+        if total_grants_count == 0:
+            logger.warning("No grants found in database. Grants may need to be synced using: python manage.py sync_grants")
+        else:
+            # Log some sample grant titles for debugging
+            sample_grants = grants[:3]
+            for grant in sample_grants:
+                logger.info(f"Sample grant: {grant.title} (Agency: {grant.agency.acronym if grant.agency else 'None'})")
+    except Exception as e:
+        logger.error(f"Error querying grants: {e}", exc_info=True)
+        grants = Grant.objects.none()  # Return empty queryset on error
     
     # Filtering
     search_query = request.GET.get('search', '')
@@ -456,16 +414,34 @@ def grants_list(request):
                 user_grant_matches[match.grant_id] = match
     
     # Annotate grants with saved status and match data (only from GrantMatch records)
-    grants_list = list(grants.order_by('-closing_date'))
+    # Order by closing_date (nulls last) to show grants with dates first
+    try:
+        grants_list = list(grants.order_by('-closing_date', '-id'))
+        logger.info(f"Grants after filtering: {len(grants_list)}")
+    except Exception as e:
+        logger.error(f"Error converting grants to list: {e}", exc_info=True)
+        # Fallback: try without ordering
+        try:
+            grants_list = list(grants)
+            logger.info(f"Grants after filtering (no ordering): {len(grants_list)}")
+        except Exception as e2:
+            logger.error(f"Error even without ordering: {e2}", exc_info=True)
+            grants_list = []
     
     # Add match data to each grant (only if there's an actual GrantMatch record)
     for grant in grants_list:
-        if grant.id in user_grant_matches:
-            match = user_grant_matches[grant.id]
-            grant.user_match_score = match.match_score
-            grant.user_match_reasons = match.match_reasons[:3] if match.match_reasons else []
-        else:
-            grant.user_match_score = None  # No match - don't show score
+        try:
+            if grant.id in user_grant_matches:
+                match = user_grant_matches[grant.id]
+                grant.user_match_score = match.match_score
+                grant.user_match_reasons = match.match_reasons[:3] if match.match_reasons else []
+            else:
+                grant.user_match_score = None  # No match - don't show score
+                grant.user_match_reasons = []
+        except Exception as e:
+            logger.error(f"Error processing grant {grant.id}: {e}", exc_info=True)
+            # Continue processing other grants
+            grant.user_match_score = None
             grant.user_match_reasons = []
     
     agencies = Agency.objects.all().order_by('acronym')
@@ -542,47 +518,7 @@ def grant_detail(request, grant_id):
     positive_reasons = match_reasons[:4] if match_reasons else []
     negative_reasons = []
     
-    # Only generate AI analysis if there's an actual GrantMatch record
-    if user_project and match_score > 0:
-        try:
-            from .gemini_service import GeminiMatchingService
-            gemini_service = GeminiMatchingService()
-            
-            # Prepare project data
-            project_data = {
-                'title': user_project.title,
-                'description': user_project.description,
-                'focus_area': user_project.focus_area,
-                'budget_required_min': float(user_project.budget_required_min) if user_project.budget_required_min else None,
-                'budget_required_max': float(user_project.budget_required_max) if user_project.budget_required_max else None,
-                'duration_years': user_project.duration_years,
-                'kpis': user_project.kpis,
-                'service_outcomes': user_project.service_outcomes,
-                'beneficiary_types': user_project.beneficiary_types or [],
-                'interested_in': user_project.interested_in or [],
-            }
-            
-            # Prepare grant data
-            grant_data = {
-                'title': live_grant_data.get('title', grant.title) if live_grant_data else grant.title,
-                'description': live_grant_data.get('description', grant.description) if live_grant_data else grant.description,
-                'agency_name': grant.agency.name,
-                'agency_acronym': grant.agency.acronym,
-                'funding_min': float(grant.funding_min) if grant.funding_min else None,
-                'funding_max': float(grant.funding_max) if grant.funding_max else None,
-                'duration_years': grant.duration_years,
-                'eligibility_criteria': live_grant_data.get('eligibility_criteria', grant.eligibility_criteria) if live_grant_data else grant.eligibility_criteria,
-                'closing_date': str(grant.closing_date) if grant.closing_date else None,
-            }
-            
-            # Generate AI analysis
-            ai_positive, ai_negative = gemini_service.analyze_grant_match(project_data, grant_data)
-            positive_reasons = ai_positive if ai_positive else positive_reasons
-            negative_reasons = ai_negative
-            
-        except Exception as e:
-            print(f"Error generating AI analysis: {e}")
-            # Use existing match reasons as fallback
+    # Use existing match reasons (no AI analysis needed with rule-based matching)
     
     # Check if user has an existing application for this grant
     existing_application = Application.objects.filter(
@@ -934,22 +870,74 @@ def update_application_status(request, application_id):
 
 
 @login_required
+@login_required
 def settings_view(request):
-    """User settings"""
+    """User settings with multiple tabs"""
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    tab = request.GET.get('tab', 'organization')
     
     if request.method == 'POST':
+        # Organization Information
         profile.organization_name = request.POST.get('organization_name', '')
         profile.organization_type = request.POST.get('organization_type', '')
-        profile.bio = request.POST.get('bio', '')
-        profile.save()
+        profile.organization_registration = request.POST.get('organization_registration', '')
+        profile.organization_description = request.POST.get('organization_description', '')
+        profile.organization_website = request.POST.get('organization_website', '')
+        profile.organization_email = request.POST.get('organization_email', '')
+        profile.organization_phone = request.POST.get('organization_phone', '')
+        profile.organization_address = request.POST.get('organization_address', '')
         
+        # Personal Information
         user = request.user
         user.first_name = request.POST.get('first_name', '')
         user.last_name = request.POST.get('last_name', '')
         user.email = request.POST.get('email', '')
+        profile.bio = request.POST.get('bio', '')
+        
+        # Notification Preferences
+        profile.notify_email = request.POST.get('notify_email') == 'on'
+        profile.notify_new_grants = request.POST.get('notify_new_grants') == 'on'
+        profile.notify_deadline_reminders = request.POST.get('notify_deadline_reminders') == 'on'
+        profile.notify_application_updates = request.POST.get('notify_application_updates') == 'on'
+        profile.notify_weekly_digest = request.POST.get('notify_weekly_digest') == 'on'
+        profile.notification_threshold = request.POST.get('notification_threshold', '70')
+        
+        # AI Preferences
+        profile.ai_suggestions_enabled = request.POST.get('ai_suggestions_enabled') == 'on'
+        profile.ai_auto_matching = request.POST.get('ai_auto_matching') == 'on'
+        profile.ai_proposal_assistance = request.POST.get('ai_proposal_assistance') == 'on'
+        profile.ai_deadline_alerts = request.POST.get('ai_deadline_alerts') == 'on'
+        
+        # Matching Preferences
+        preferred_categories = request.POST.getlist('preferred_categories')
+        profile.preferred_categories = preferred_categories
+        profile.funding_min = request.POST.get('funding_min') or None
+        profile.funding_max = request.POST.get('funding_max') or None
+        profile.typical_duration = request.POST.get('typical_duration', '12_months')
+        
+        profile.save()
         user.save()
         
         return redirect('grants:settings')
     
-    return render(request, 'grants/settings.html', {'profile': profile})
+    context = {
+        'profile': profile,
+        'tab': tab,
+        'organization_type_choices': UserProfile.ORGANIZATION_TYPE_CHOICES,
+        'threshold_choices': UserProfile.NOTIFICATION_THRESHOLD_CHOICES,
+        'duration_choices': UserProfile.DURATION_CHOICES,
+        'grant_categories': [
+            'Community Care',
+            'Innovation',
+            'Technology',
+            'Healthcare',
+            'Mental Wellness',
+            'Active Aging',
+            'Caregiver Support',
+            'Social Integration',
+            'Digital Inclusion',
+            'Research & Development'
+        ]
+    }
+    
+    return render(request, 'grants/settings.html', context)

@@ -440,6 +440,7 @@
                 <div class="grant-card-enhanced">
                     <div class="grant-card-top">
                         <div class="agency-logo-container">
+                            {% if grant.agency %}
                             {% with agency_lower=grant.agency.acronym|lower %}
                             <!-- Show fallback by default, hide if image loads successfully -->
                             <span class="agency-logo-default" style="display: flex;">
@@ -453,11 +454,14 @@
                                  onerror="tryNextFormat(this, '{{ agency_lower }}')"
                                  style="display: none;">
                             {% endwith %}
+                            {% else %}
+                            <span class="agency-logo-default" style="display: flex;">N/A</span>
+                            {% endif %}
                         </div>
                         
                         <div class="grant-card-header-content">
                             <div class="grant-card-header-row">
-                                <span class="grant-agency-name">{{ grant.agency.acronym }}</span>
+                                <span class="grant-agency-name">{% if grant.agency %}{{ grant.agency.acronym }}{% else %}Unknown{% endif %}</span>
                                 {% if grant.user_match_score %}
                                 <span class="match-badge-top 
                                     {% if grant.user_match_score >= 92 %}match-badge-92plus
