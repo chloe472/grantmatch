@@ -774,47 +774,51 @@ class SGGrantsService:
         one section based on prioritized keyword rules.
         Returns dict with keys: about, who, when, funding
         """
+        # Sentence-based classifier: split text into sentences and classify each
         text = soup.get_text('\n\n', strip=True)
-        paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
+
+        # Naive sentence split: split on sentence enders followed by space and capital letter or line breaks.
+        # This is intentionally simple to avoid extra deps. It preserves ordering.
+        raw_sentences = re.split(r'(?<=[\.!?])\s+(?=[A-Z0-9\(])', text)
+        sentences = [s.strip() for s in raw_sentences if s.strip()]
 
         funding_kw = ['$', 's$', 'sgd', 'up to', '%', 'subsidy', 'co-fund', 'reimburse', 'allowable cost']
-        when_kw = ['deadline', 'closing date', 'closes', 'open for', 'apply by', 'deadline:', 'closing:']
-        who_kw = ['eligible', 'open to', 'must be', 'singapore citizens', 'pr', 'ncss-members', 'msf-funded']
+        when_kw = ['deadline', 'closing date', 'closes', 'open for', 'apply by', 'once a year', 'annual', 'month', 'months', 'open for applications']
+        who_kw = ['eligible', 'open to', 'must be', 'singapore citizens', 'pr', 'ncss', 'msf', 'agency', 'agencies']
 
-        # month names and simple date patterns to help detect when-to-apply
-        months = r'\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b'
-        date_pattern = re.compile(r'(\d{1,2}\s+' + months + r')|\d{4}-\d{2}-\d{2}', re.I)
+        # date patterns (e.g., 1 Jan 2024, 2024-01-01)
+        months = r'(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)'
+        date_pattern = re.compile(r'\b\d{1,2}\s+' + months + r'\b|\b\d{4}-\d{2}-\d{2}\b', re.I)
 
         sections = {'about': [], 'who': [], 'when': [], 'funding': []}
 
-        for para in paragraphs:
-            lowered = para.lower()
+        for sent in sentences:
+            lowered = sent.lower()
 
-            # Funding (highest priority)
+            # Funding first (highest priority)
             if any(kw in lowered for kw in funding_kw):
-                sections['funding'].append(para)
+                sections['funding'].append(sent)
                 continue
 
-            # When to apply - check date patterns or when keywords
-            if date_pattern.search(para) or any(kw in lowered for kw in when_kw):
-                sections['when'].append(para)
+            # When to apply: date patterns or when keywords
+            if date_pattern.search(sent) or any(kw in lowered for kw in when_kw):
+                sections['when'].append(sent)
                 continue
 
             # Who can apply
             if any(kw in lowered for kw in who_kw):
-                sections['who'].append(para)
+                sections['who'].append(sent)
                 continue
 
-            # Else -> About
-            sections['about'].append(para)
+            # Default -> about
+            sections['about'].append(sent)
 
-        # Ensure deduplication: a paragraph appears in only one section by design
-        # Join paragraphs preserving blank-line paragraph breaks
+        # Join sentences while preserving sentence order within each section.
         return {
-            'about': '\n\n'.join(sections['about']).strip(),
-            'who': '\n\n'.join(sections['who']).strip(),
-            'when': '\n\n'.join(sections['when']).strip(),
-            'funding': '\n\n'.join(sections['funding']).strip()
+            'about': ' '.join(sections['about']).strip(),
+            'who': ' '.join(sections['who']).strip(),
+            'when': ' '.join(sections['when']).strip(),
+            'funding': ' '.join(sections['funding']).strip()
         }
     
     def _format_applicable_to(self, grant_detail):
