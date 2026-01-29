@@ -862,17 +862,21 @@
                 <div id="tab-about" class="tab-pane active">
                     <div class="tab-pane-content">
                         <h2>About this grant</h2>
-                        {% if live_data.about_grant %}
+                        {% if grant.about_text %}
+                        <div class="grant-description">
+                            {{ grant.about_text|linebreaksbr }}
+                        </div>
+                        {% elif live_data.about_grant %}
                         <div class="grant-description">
                             {{ live_data.about_grant|linebreaksbr }}
                         </div>
-                        {% elif live_data.description %}
+                        {% elif grant.description %}
                         <div class="grant-description">
-                            {{ live_data.description|linebreaksbr }}
+                            {{ grant.description|linebreaksbr }}
                         </div>
                         {% else %}
                         <div class="grant-description">
-                            <p>{{ grant.description }}</p>
+                            <p>No description available.</p>
                         </div>
                         {% endif %}
                         {% if live_data.focus_area or grant.focus_area %}
@@ -887,17 +891,17 @@
                 <div id="tab-who" class="tab-pane">
                     <div class="tab-pane-content">
                         <h2>Who can apply?</h2>
-                        {% if live_data.who_can_apply %}
+                        {% if grant.who_can_apply_text %}
                         <div class="eligibility-content">
-                            {{ live_data.who_can_apply|linebreaks }}
+                            {{ grant.who_can_apply_text|linebreaksbr }}
                         </div>
-                        {% elif live_data.eligibility_criteria %}
+                        {% elif live_data.who_can_apply %}
                         <div class="eligibility-content">
-                            {{ live_data.eligibility_criteria|linebreaks }}
+                            {{ live_data.who_can_apply|linebreaksbr }}
                         </div>
                         {% elif grant.eligibility_criteria %}
                         <div class="eligibility-content">
-                            <p>{{ grant.eligibility_criteria }}</p>
+                            {{ grant.eligibility_criteria|linebreaksbr }}
                         </div>
                         {% else %}
                         <p>Please check the official grant page for detailed eligibility criteria.</p>
@@ -924,9 +928,13 @@
                 <div id="tab-when" class="tab-pane">
                     <div class="tab-pane-content">
                         <h2>When can I apply?</h2>
-                        {% if live_data.when_to_apply %}
+                        {% if grant.when_to_apply_text %}
                         <div class="when-to-apply-content">
-                            {{ live_data.when_to_apply|linebreaks }}
+                            {{ grant.when_to_apply_text|linebreaksbr }}
+                        </div>
+                        {% elif live_data.when_to_apply %}
+                        <div class="when-to-apply-content">
+                            {{ live_data.when_to_apply|linebreaksbr }}
                         </div>
                         {% endif %}
                         <div class="timeline-info" style="margin-top: 20px;">
@@ -962,7 +970,11 @@
                 <div id="tab-funding" class="tab-pane">
                     <div class="tab-pane-content">
                         <h2>How much funding can you receive?</h2>
-                        {% if live_data.funding_info %}
+                        {% if grant.funding_text %}
+                        <div class="funding-info-content">
+                            {{ grant.funding_text|linebreaksbr }}
+                        </div>
+                        {% elif live_data.funding_info %}
                             {% if live_data.funding_info.is_table %}
                             <!-- Display as table -->
                             <div class="funding-table-container" style="overflow-x: auto; margin-bottom: 20px;">
@@ -982,27 +994,21 @@
                             </div>
                             {% else %}
                             <!-- Display as plain text -->
-                            <div class="funding-info-content" style="font-size: 16px; line-height: 1.6; color: var(--text-dark); margin-bottom: 20px;">
-                                {{ live_data.funding_info|linebreaks }}
+                            <div class="funding-info-content">
+                                {{ live_data.funding_info|linebreaksbr }}
                             </div>
                             {% endif %}
-                        {% elif live_data.funding_details %}
-                        <div class="funding-info-content" style="font-size: 16px; line-height: 1.6; color: var(--text-dark); margin-bottom: 20px;">
-                            {{ live_data.funding_details|linebreaks }}
+                        {% elif grant.funding_min and grant.funding_max %}
+                        <div class="funding-info-content">
+                            <p>Up to SGD ${{ grant.funding_max|floatformat:0 }}K</p>
                         </div>
-                        {% elif live_data.grant_amount_text %}
-                        <div class="funding-info-content" style="font-size: 16px; line-height: 1.6; color: var(--text-dark); margin-bottom: 20px;">
-                            {{ live_data.grant_amount_text|linebreaks }}
+                        {% elif grant.funding_max %}
+                        <div class="funding-info-content">
+                            <p>Up to SGD ${{ grant.funding_max|floatformat:0 }}K</p>
                         </div>
                         {% else %}
-                        <div class="funding-info-content" style="font-size: 16px; line-height: 1.6; color: var(--text-dark); margin-bottom: 20px;">
-                            {% if grant.funding_min and grant.funding_max %}
-                                Up to SGD ${{ grant.funding_max|floatformat:0 }}K
-                            {% elif grant.funding_max %}
-                                Up to SGD ${{ grant.funding_max|floatformat:0 }}K
-                            {% else %}
-                                {{ grant.funding_range }}
-                            {% endif %}
+                        <div class="funding-info-content">
+                            <p>{{ grant.funding_range }}</p>
                         </div>
                         {% endif %}
                     </div>
