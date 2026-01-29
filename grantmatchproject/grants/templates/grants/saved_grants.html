@@ -107,17 +107,42 @@
 
 {% block extra_js %}
 <script>
-let grantsToUnsave = new Set();
-
 function toggleSave(grantId) {
     const button = event.target.closest('button');
+    const grantCard = button.closest('.grant-card');
     
     if (button.classList.contains('saved')) {
-        // Currently saved, mark for unsaving
+        // Currently saved, unsave it
         button.classList.remove('saved');
-        grantsToUnsave.add(grantId);
+        
+        fetch(`/grants/${grantId}/save/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+        }).then(() => {
+            // Fade out and remove the card
+            grantCard.style.opacity = '0';
+            grantCard.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                grantCard.remove();
+                
+                // Check if there are any cards left
+                const remaining = document.querySelectorAll('.grant-card').length;
+                if (remaining === 0) {
+                    // Show empty state
+                    const container = document.querySelector('.grant-cards');
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <p>You haven't saved any grants yet.</p>
+                            <a href="{% url 'grants:grants_list' %}" class="btn btn-primary">Browse Grants</a>
+                        </div>
+                    `;
+                }
+            }, 300);
+        });
     } else {
-        // Currently not saved, save immediately
+        // Currently not saved, save it
         fetch(`/grants/${grantId}/save/`, {
             method: 'POST',
             headers: {
@@ -125,22 +150,8 @@ function toggleSave(grantId) {
             },
         }).then(() => {
             button.classList.add('saved');
-            grantsToUnsave.delete(grantId);
         });
     }
 }
-
-// Handle page unload to actually unsave the marked grants
-window.addEventListener('beforeunload', function() {
-    if (grantsToUnsave.size > 0) {
-        // Use sendBeacon for reliable delivery during page unload
-        const data = JSON.stringify({
-            grant_ids: Array.from(grantsToUnsave),
-            action: 'unsave'
-        });
-        
-        navigator.sendBeacon('/grants/bulk-unsave/', data);
-    }
-});
 </script>
 {% endblock %}
