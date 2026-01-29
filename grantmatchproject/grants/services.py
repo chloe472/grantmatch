@@ -1253,6 +1253,103 @@ class SGGrantsService:
             'skipped': skipped_count,
             'total': len(grants_data)
         }
+
+    def sync_grant_by_id(self, grant_id=None, external_id=None):
+        """
+        Sync a single Grant instance by its DB id or external_id using live OurSG content.
+        This will fetch live sections (about, who, when, funding) and persist them
+        into existing Grant model fields without changing schema. Existing values
+        are preserved if extraction fails.
+        """
+        from django.db import transaction
+
+        # Locate the Grant instance
+        grant = None
+        try:
+            if grant_id:
+                grant = Grant.objects.get(id=grant_id)
+            elif external_id:
+                grant = Grant.objects.get(external_id=external_id)
+            else:
+                raise ValueError('grant_id or external_id required')
+        except Grant.DoesNotExist:
+            print(f"Grant not found for id={grant_id} external_id={external_id}")
+            return {'updated': 0, 'error': 'not_found'}
+
+        # Fetch live detail using external_id if available, otherwise try by grant value in URL
+        fetched = None
+        try:
+            fetched = self.fetch_grant_detail(external_id=grant.external_id)
+        except Exception as e:
+            print(f"Error fetching live detail for grant {grant.id}: {e}")
+
+        if not fetched:
+            print(f"No live content fetched for grant {grant.id}; skipping update.")
+            return {'updated': 0, 'skipped': 1}
+
+        # Map extracted sections into existing fields safely
+        about = fetched.get('about_grant') or ''
+        who = fetched.get('who_can_apply') or ''
+        when = fetched.get('when_to_apply') or ''
+        funding_info = fetched.get('funding_info') or fetched.get('grant_amount_text') or ''
+        funding_min = fetched.get('funding_min')
+        funding_max = fetched.get('funding_max')
+
+        # Only write fields if we have meaningful extracted content
+        updated = 0
+        try:
+            with transaction.atomic():
+                changed = False
+
+                # Update description (about). Preserve existing if empty extraction.
+                if about and len(about) > 20 and about != grant.description:
+                    grant.description = about
+                    changed = True
+
+                # Update eligibility_criteria
+                if who and len(who) > 10 and who != grant.eligibility_criteria:
+                    grant.eligibility_criteria = who
+                    changed = True
+
+                # Append or update 'when_to_apply' into description if present
+                if when and len(when) > 10:
+                    # Only add if not already contained
+                    if when not in grant.description:
+                        grant.description = (grant.description or '') + '\n\nWhen to apply:\n' + when
+                        changed = True
+
+                # Update funding_min/max and include funding_info text if present
+                if funding_min is not None and funding_min != grant.funding_min:
+                    grant.funding_min = funding_min
+                    changed = True
+                if funding_max is not None and funding_max != grant.funding_max:
+                    grant.funding_max = funding_max
+                    changed = True
+
+                # If we have a funding_info textual description and it's meaningful,
+                # append to description if not present.
+                if funding_info and len(str(funding_info)) > 10:
+                    fi_text = str(funding_info).strip()
+                    if fi_text not in grant.description:
+                        grant.description = (grant.description or '') + '\n\nFunding:\n' + fi_text
+                        changed = True
+
+                # Update source/application urls if present
+                if fetched.get('document_links'):
+                    # Prefer instruction page as source_url
+                    if grant.source_url != grant.application_url and grant.application_url:
+                        grant.source_url = grant.application_url
+                        changed = True
+
+                if changed:
+                    grant.save()
+                    updated = 1
+
+        except Exception as e:
+            print(f"Error saving grant {grant.id}: {e}")
+            return {'updated': 0, 'error': str(e)}
+
+        return {'updated': updated}
     
     def _extract_acronym(self, agency_name):
         """Extract acronym from agency name"""

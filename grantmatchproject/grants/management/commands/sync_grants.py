@@ -21,22 +21,45 @@ class Command(BaseCommand):
             action='store_true',
             help='Also fetch agency logos after syncing grants',
         )
+        parser.add_argument(
+            '--id',
+            type=int,
+            help='Sync a single grant by DB id',
+        )
+        parser.add_argument(
+            '--external-id',
+            type=str,
+            help='Sync a single grant by external_id',
+        )
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS('Fetching grants from OurSG Grants Portal...'))
         service = SGGrantsService()
         
         try:
-            # Sync grants to database
-            result = service.sync_grants_to_db()
-            
-            # Report results
-            self.stdout.write(
-                self.style.SUCCESS(
-                    f'Successfully synced {result["total"]} grants: '
-                    f'{result["created"]} created, {result["updated"]} updated, {result["skipped"]} skipped'
+            # If a single id or external_id provided, sync just that grant
+            if options.get('id') or options.get('external_id'):
+                grant_id = options.get('id')
+                external_id = options.get('external_id')
+                self.stdout.write(self.style.SUCCESS(f'Syncing single grant id={grant_id} external_id={external_id}'))
+                result = service.sync_grant_by_id(grant_id=grant_id, external_id=external_id)
+                if result.get('updated'):
+                    self.stdout.write(self.style.SUCCESS('Successfully updated grant.'))
+                elif result.get('skipped'):
+                    self.stdout.write(self.style.WARNING('Grant sync skipped (no live content).'))
+                else:
+                    self.stdout.write(self.style.WARNING(f'Grant sync result: {result}'))
+            else:
+                # Sync grants to database
+                result = service.sync_grants_to_db()
+                
+                # Report results
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f'Successfully synced {result["total"]} grants: '
+                        f'{result["created"]} created, {result["updated"]} updated, {result["skipped"]} skipped'
+                    )
                 )
-            )
             
             # Remove grants with empty external_id (old invalid data)
             old_invalid_grants = Grant.objects.filter(external_id__exact='')
