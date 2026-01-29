@@ -273,6 +273,15 @@
         line-height: 1.8;
         margin-bottom: 16px;
     }
+
+    /* Ensure full content is visible for scraped sections (disable clamping) */
+    .grant-description, .eligibility-content, .when-to-apply-content, .funding-info-content {
+        overflow: visible !important;
+        max-height: none !important;
+        text-overflow: clip !important;
+        -webkit-line-clamp: unset !important;
+        -webkit-box-orient: unset !important;
+    }
     
     .eligibility-content ul, .when-to-apply-content ul, .funding-info-content ul, .how-to-apply-content ul {
         margin: 16px 0 16px 24px;
@@ -855,11 +864,11 @@
                         <h2>About this grant</h2>
                         {% if live_data.about_grant %}
                         <div class="grant-description">
-                            {{ live_data.about_grant|linebreaks }}
+                            {{ live_data.about_grant|linebreaksbr }}
                         </div>
                         {% elif live_data.description %}
                         <div class="grant-description">
-                            {{ live_data.description|linebreaks }}
+                            {{ live_data.description|linebreaksbr }}
                         </div>
                         {% else %}
                         <div class="grant-description">
