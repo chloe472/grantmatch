@@ -261,6 +261,38 @@ class SGGrantsService:
             finally:
                 await context.close()
                 await browser.close()
+
+    def _fetch_rendered_soup(self, instruction_url):
+        """
+        Render the instruction page with Playwright and return a BeautifulSoup object
+        of the fully rendered HTML. Caller is responsible for handling None results.
+        """
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result = loop.run_until_complete(self._async_fetch_rendered_html(instruction_url))
+            loop.close()
+            if result:
+                return BeautifulSoup(result, 'html.parser')
+            return None
+        except Exception as e:
+            print(f"Error rendering page with Playwright: {e}")
+            return None
+
+    async def _async_fetch_rendered_html(self, instruction_url):
+        """Async helper that returns rendered HTML string for a given URL."""
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            context = await browser.new_context()
+            page = await context.new_page()
+            try:
+                await page.goto(instruction_url, wait_until="load", timeout=60000)
+                await page.wait_for_timeout(3000)
+                content = await page.content()
+                return content
+            finally:
+                await context.close()
+                await browser.close()
     
     def _extract_grant_sections(self, soup):
         """
@@ -734,6 +766,56 @@ class SGGrantsService:
                 })
         
         return links
+
+    def _classify_paragraphs(self, soup):
+        """
+        Fallback paragraph classifier. Splits rendered text into paragraphs
+        (preserving paragraph breaks) and assigns each paragraph to exactly
+        one section based on prioritized keyword rules.
+        Returns dict with keys: about, who, when, funding
+        """
+        text = soup.get_text('\n\n', strip=True)
+        paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
+
+        funding_kw = ['$', 's$', 'sgd', 'up to', '%', 'subsidy', 'co-fund', 'reimburse', 'allowable cost']
+        when_kw = ['deadline', 'closing date', 'closes', 'open for', 'apply by', 'deadline:', 'closing:']
+        who_kw = ['eligible', 'open to', 'must be', 'singapore citizens', 'pr', 'ncss-members', 'msf-funded']
+
+        # month names and simple date patterns to help detect when-to-apply
+        months = r'\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b'
+        date_pattern = re.compile(r'(\d{1,2}\s+' + months + r')|\d{4}-\d{2}-\d{2}', re.I)
+
+        sections = {'about': [], 'who': [], 'when': [], 'funding': []}
+
+        for para in paragraphs:
+            lowered = para.lower()
+
+            # Funding (highest priority)
+            if any(kw in lowered for kw in funding_kw):
+                sections['funding'].append(para)
+                continue
+
+            # When to apply - check date patterns or when keywords
+            if date_pattern.search(para) or any(kw in lowered for kw in when_kw):
+                sections['when'].append(para)
+                continue
+
+            # Who can apply
+            if any(kw in lowered for kw in who_kw):
+                sections['who'].append(para)
+                continue
+
+            # Else -> About
+            sections['about'].append(para)
+
+        # Ensure deduplication: a paragraph appears in only one section by design
+        # Join paragraphs preserving blank-line paragraph breaks
+        return {
+            'about': '\n\n'.join(sections['about']).strip(),
+            'who': '\n\n'.join(sections['who']).strip(),
+            'when': '\n\n'.join(sections['when']).strip(),
+            'funding': '\n\n'.join(sections['funding']).strip()
+        }
     
     def _format_applicable_to(self, grant_detail):
         """Format the applicable_to field into readable text"""
@@ -1276,24 +1358,61 @@ class SGGrantsService:
             print(f"Grant not found for id={grant_id} external_id={external_id}")
             return {'updated': 0, 'error': 'not_found'}
 
-        # Fetch live detail using external_id if available, otherwise try by grant value in URL
-        fetched = None
-        try:
-            fetched = self.fetch_grant_detail(external_id=grant.external_id)
-        except Exception as e:
-            print(f"Error fetching live detail for grant {grant.id}: {e}")
-
-        if not fetched:
-            print(f"No live content fetched for grant {grant.id}; skipping update.")
+        # Fetch and classify live instruction page content
+        instruction_url = grant.application_url or grant.source_url
+        if not instruction_url:
+            print(f"No instruction URL for grant {grant.id}; skipping.")
             return {'updated': 0, 'skipped': 1}
 
-        # Map extracted sections into existing fields safely
-        about = fetched.get('about_grant') or ''
-        who = fetched.get('who_can_apply') or ''
-        when = fetched.get('when_to_apply') or ''
-        funding_info = fetched.get('funding_info') or fetched.get('grant_amount_text') or ''
-        funding_min = fetched.get('funding_min')
-        funding_max = fetched.get('funding_max')
+        try:
+            soup = self._fetch_rendered_soup(instruction_url)
+        except Exception as e:
+            print(f"Error rendering instruction page for grant {grant.id}: {e}")
+            return {'updated': 0, 'skipped': 1}
+
+        if not soup:
+            print(f"Rendered content empty for grant {grant.id}; skipping.")
+            return {'updated': 0, 'skipped': 1}
+
+        # Detect clear section headings: count how many of the target headings exist
+        heading_keywords = [
+            'about this grant', 'who can apply', 'when can i apply', 'how much funding',
+            'who is eligible', 'when to apply', 'funding amount', 'how much funding can you receive'
+        ]
+        found = 0
+        for h in soup.find_all(['h1', 'h2', 'h3', 'h4', 'strong', 'b']):
+            text = h.get_text(' ', strip=True).lower()
+            if any(kw in text for kw in heading_keywords):
+                found += 1
+
+        # If clear headings exist (3 or more), prefer heading-aware extraction
+        if found >= 3:
+            try:
+                extracted = self._extract_grant_sections(soup)
+                about = extracted.get('about_grant') or ''
+                who = extracted.get('who_can_apply') or ''
+                when = extracted.get('when_to_apply') or ''
+                funding_info = extracted.get('funding_info') or extracted.get('grant_amount_text') or ''
+                funding_min = extracted.get('funding_min')
+                funding_max = extracted.get('funding_max')
+                print(f"DEBUG: Heading-aware extraction used for grant {grant.id}; headings_found={found}")
+            except Exception as e:
+                print(f"Error during heading-aware extraction for grant {grant.id}: {e}")
+                return {'updated': 0, 'skipped': 1}
+        else:
+            # Fallback: paragraph-based classification using rules
+            try:
+                classified = self._classify_paragraphs(soup)
+                about = classified.get('about') or ''
+                who = classified.get('who') or ''
+                when = classified.get('when') or ''
+                funding_info = classified.get('funding') or ''
+                # parse funding amounts from funding_info
+                funding_min, funding_max = self._parse_funding(funding_info) if funding_info else (None, None)
+                print(f"DEBUG: Paragraph-classification extraction used for grant {grant.id}; paragraphs_classified")
+            except Exception as e:
+                print(f"Error during paragraph-classification for grant {grant.id}: {e}")
+                return {'updated': 0, 'skipped': 1}
 
         # Only write fields if we have meaningful extracted content
         updated = 0
