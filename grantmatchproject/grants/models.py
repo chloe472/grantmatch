@@ -27,6 +27,11 @@ class Grant(models.Model):
     title = models.CharField(max_length=300)
     agency = models.ForeignKey(Agency, on_delete=models.CASCADE, related_name='grants')
     description = models.TextField()
+    # Section-specific text from OurSG
+    about_text = models.TextField(blank=True, help_text="About this grant section")
+    who_can_apply_text = models.TextField(blank=True, help_text="Who can apply section")
+    when_to_apply_text = models.TextField(blank=True, help_text="When to apply section")
+    funding_text = models.TextField(blank=True, help_text="Funding information section")
     funding_min = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     funding_max = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     closing_date = models.DateField(null=True, blank=True)

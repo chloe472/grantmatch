@@ -1418,30 +1418,33 @@ class SGGrantsService:
                 print(f"Error during paragraph-classification for grant {grant.id}: {e}")
                 return {'updated': 0, 'skipped': 1}
 
-        # Only write fields if we have meaningful extracted content
+        # Populate new section-specific fields
         updated = 0
         try:
             with transaction.atomic():
                 changed = False
 
-                # Update description (about). Preserve existing if empty extraction.
-                if about and len(about) > 20 and about != grant.description:
-                    grant.description = about
+                # Update about_text
+                if about and len(about) > 10:
+                    grant.about_text = about
                     changed = True
 
-                # Update eligibility_criteria
-                if who and len(who) > 10 and who != grant.eligibility_criteria:
-                    grant.eligibility_criteria = who
+                # Update who_can_apply_text
+                if who and len(who) > 10:
+                    grant.who_can_apply_text = who
                     changed = True
 
-                # Append or update 'when_to_apply' into description if present
+                # Update when_to_apply_text
                 if when and len(when) > 10:
-                    # Only add if not already contained
-                    if when not in grant.description:
-                        grant.description = (grant.description or '') + '\n\nWhen to apply:\n' + when
-                        changed = True
+                    grant.when_to_apply_text = when
+                    changed = True
 
-                # Update funding_min/max and include funding_info text if present
+                # Update funding_text
+                if funding_info and len(str(funding_info)) > 10:
+                    grant.funding_text = str(funding_info).strip()
+                    changed = True
+
+                # Update funding_min/max
                 if funding_min is not None and funding_min != grant.funding_min:
                     grant.funding_min = funding_min
                     changed = True
@@ -1449,24 +1452,10 @@ class SGGrantsService:
                     grant.funding_max = funding_max
                     changed = True
 
-                # If we have a funding_info textual description and it's meaningful,
-                # append to description if not present.
-                if funding_info and len(str(funding_info)) > 10:
-                    fi_text = str(funding_info).strip()
-                    if fi_text not in grant.description:
-                        grant.description = (grant.description or '') + '\n\nFunding:\n' + fi_text
-                        changed = True
-
-                # Update source/application urls if present
-                if fetched.get('document_links'):
-                    # Prefer instruction page as source_url
-                    if grant.source_url != grant.application_url and grant.application_url:
-                        grant.source_url = grant.application_url
-                        changed = True
-
                 if changed:
                     grant.save()
                     updated = 1
+                    print(f"DEBUG: Updated grant {grant.id} with section fields; about={len(grant.about_text)} who={len(grant.who_can_apply_text)} when={len(grant.when_to_apply_text)} funding={len(grant.funding_text)}")
 
         except Exception as e:
             print(f"Error saving grant {grant.id}: {e}")
