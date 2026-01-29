@@ -73,17 +73,82 @@
                     <input type="text" id="header-search-input" name="header-search" placeholder="Search grants, events, or applications..." class="search-input">
                 </div>
                 <div class="header-actions">
-                    <a href="#" class="notification-bell">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                            <path d="M18 8A6 6 0 0 0 6 8C6 11.09 4.5 13.5 4.5 13.5H19.5S18 11.09 18 8Z" stroke="currentColor" stroke-width="2" fill="none"/>
-                            <path d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21" stroke="currentColor" stroke-width="2"/>
-                        </svg>
-                        {% if user.is_authenticated %}
-                            {% if user.notifications.count > 0 %}
-                                <span class="notification-badge">{{ user.notifications.count }}</span>
+                    <div class="notification-container">
+                        <a href="#" id="notification-bell-btn" class="notification-bell">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <path d="M18 8A6 6 0 0 0 6 8C6 11.09 4.5 13.5 4.5 13.5H19.5S18 11.09 18 8Z" stroke="currentColor" stroke-width="2" fill="none"/>
+                                <path d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                            {% if user.is_authenticated %}
+                                {% if unread_notifications > 0 %}
+                                    <span class="notification-badge" id="notification-badge">{{ unread_notifications }}</span>
+                                {% endif %}
                             {% endif %}
-                        {% endif %}
-                    </a>
+                        </a>
+                        
+                        <!-- Notifications Panel -->
+                        <div id="notifications-panel" class="notifications-panel">
+                            <div class="notifications-header">
+                                <h3>Notifications</h3>
+                                <span class="unread-count" id="unread-count">{{ unread_notifications }} unread</span>
+                                <a href="#" class="mark-all-read" id="mark-all-read">Mark all as read</a>
+                            </div>
+                            <div class="notifications-list">
+                                {% if user_notifications %}
+                                    {% for notification in user_notifications %}
+                                    <div class="notification-item {% if not notification.is_read %}unread{% endif %}" data-id="{{ notification.id }}">
+                                        <div class="notification-icon">
+                                            {% if "grant" in notification.title|lower %}
+                                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                                    <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" fill="currentColor" stroke="currentColor"/>
+                                                </svg>
+                                            {% elif "deadline" in notification.title|lower %}
+                                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                                    <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                                </svg>
+                                            {% elif "application" in notification.title|lower %}
+                                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                                    <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2"/>
+                                                </svg>
+                                            {% else %}
+                                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                                    <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
+                                                    <path d="M3 8H21" stroke="currentColor" stroke-width="2"/>
+                                                </svg>
+                                            {% endif %}
+                                        </div>
+                                        <div class="notification-content">
+                                            <div class="notification-title">{{ notification.title }}</div>
+                                            <div class="notification-message">{{ notification.message }}</div>
+                                            <div class="notification-date">{{ notification.created_at|date:"d M" }}</div>
+                                        </div>
+                                        <div class="notification-actions">
+                                            {% if notification.is_read %}
+                                                <button class="notification-action-btn" onclick="markNotificationUnread({{ notification.id }})" title="Mark as unread">
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                                        <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                                                    </svg>
+                                                </button>
+                                            {% else %}
+                                                <button class="notification-action-btn" onclick="removeNotification({{ notification.id }})" title="Mark as read">
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
+                                                    </svg>
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="empty-notifications">
+                                        <p>No notifications yet</p>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
                     {% if user.is_authenticated %}
                         <div class="user-avatar">
                             {% if user.profile.avatar_initials %}
@@ -145,6 +210,104 @@
             }
             return cookieValue;
         }
+
+        // Notification Bell Toggle
+        const notificationBellBtn = document.getElementById('notification-bell-btn');
+        const notificationsPanel = document.getElementById('notifications-panel');
+
+        if (notificationBellBtn) {
+            notificationBellBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                notificationsPanel.classList.toggle('active');
+            });
+
+            // Close panel when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!notificationBellBtn.contains(e.target) && !notificationsPanel.contains(e.target)) {
+                    notificationsPanel.classList.remove('active');
+                }
+            });
+        }
+
+        // Mark all as read
+        const markAllReadBtn = document.getElementById('mark-all-read');
+        if (markAllReadBtn) {
+            markAllReadBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                fetch('/notifications/mark-all-read/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken'),
+                    }
+                }).then(() => {
+                    // Update UI
+                    document.querySelectorAll('.notification-item.unread').forEach(item => {
+                        item.classList.remove('unread');
+                    });
+                    document.getElementById('unread-count').textContent = '0 unread';
+                    document.getElementById('notification-badge').style.display = 'none';
+                });
+            });
+        }
+
+        // Remove notification
+        function removeNotification(notificationId) {
+            const item = document.querySelector(`[data-id="${notificationId}"]`);
+            fetch(`/notifications/${notificationId}/mark-read/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                }
+            }).then(() => {
+                item.style.opacity = '0';
+                setTimeout(() => {
+                    item.remove();
+                    // Update unread count
+                    const unreadItems = document.querySelectorAll('.notification-item.unread').length;
+                    document.getElementById('unread-count').textContent = unreadItems + ' unread';
+                    if (unreadItems === 0) {
+                        document.getElementById('notification-badge').style.display = 'none';
+                    }
+                }, 300);
+            });
+        }
+
+        // Mark notification as unread
+        function markNotificationUnread(notificationId) {
+            const item = document.querySelector(`[data-id="${notificationId}"]`);
+            fetch(`/notifications/${notificationId}/mark-unread/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                }
+            }).then(() => {
+                item.classList.add('unread');
+                // Update unread count
+                const unreadItems = document.querySelectorAll('.notification-item.unread').length;
+                document.getElementById('unread-count').textContent = unreadItems + ' unread';
+                // Show badge if needed
+                if (unreadItems > 0) {
+                    const badge = document.getElementById('notification-badge');
+                    if (!badge) {
+                        const bellBtn = document.getElementById('notification-bell-btn');
+                        const newBadge = document.createElement('span');
+                        newBadge.id = 'notification-badge';
+                        newBadge.className = 'notification-badge';
+                        newBadge.textContent = unreadItems;
+                        bellBtn.appendChild(newBadge);
+                    } else {
+                        badge.textContent = unreadItems;
+                        badge.style.display = 'inline-block';
+                    }
+                }
+                // Update the button
+                const btn = item.querySelector('.notification-action-btn');
+                btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>';
+                btn.onclick = function() { removeNotification(notificationId); };
+                btn.title = 'Mark as read';
+            });
+        }
     </script>
+
 </body>
 </html>

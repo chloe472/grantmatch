@@ -56,9 +56,6 @@ def dashboard(request):
             closing_date__lte=timezone.now().date() + timedelta(days=120)
         ).order_by('closing_date')[:3]
         
-        # Get unread notifications count
-        unread_notifications = Notification.objects.filter(user=user, is_read=False).count()
-        
         # Get new grants matching user's projects (if any)
         new_matching_grants = []
         if projects.exists():
@@ -78,7 +75,6 @@ def dashboard(request):
             'projects': projects,
             'recent_matches': recent_matches,
             'upcoming_deadlines': upcoming_deadlines,
-            'unread_notifications': unread_notifications,
             'new_matching_grants': new_matching_grants[:2],
         }
         
@@ -941,3 +937,40 @@ def settings_view(request):
     }
     
     return render(request, 'grants/settings.html', context)
+
+
+@login_required
+def mark_notification_read(request, notification_id):
+    """Mark a specific notification as read"""
+    if request.method == 'POST':
+        try:
+            notification = Notification.objects.get(id=notification_id, user=request.user)
+            notification.is_read = True
+            notification.save()
+            return JsonResponse({'status': 'success'})
+        except Notification.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Notification not found'}, status=404)
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
+
+
+@login_required
+def mark_notification_unread(request, notification_id):
+    """Mark a specific notification as unread"""
+    if request.method == 'POST':
+        try:
+            notification = Notification.objects.get(id=notification_id, user=request.user)
+            notification.is_read = False
+            notification.save()
+            return JsonResponse({'status': 'success'})
+        except Notification.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Notification not found'}, status=404)
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
+
+
+@login_required
+def mark_all_notifications_read(request):
+    """Mark all user notifications as read"""
+    if request.method == 'POST':
+        Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+        return JsonResponse({'status': 'success'})
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
