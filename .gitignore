@@ -40,3 +40,4 @@ staticfiles/
  
  
 >>>>>>> chienyi
+*.sqlite3
