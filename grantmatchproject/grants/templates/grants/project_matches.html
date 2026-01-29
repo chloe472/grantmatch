@@ -236,6 +236,18 @@
         background: #dcfce7;
         color: #166534;
     }
+    .grant-badge-status.status-open {
+        background: #dcfce7;
+        color: #166534;
+    }
+    .grant-badge-status.status-closed {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    .grant-badge-status.status-upcoming {
+        background: #fff7ed;
+        color: #92400e;
+    }
     
     .grant-card-actions {
         display: flex;
@@ -424,7 +436,7 @@
                     {% if match.grant.duration_years %}
                     <span class="grant-badge">{{ match.grant.duration_years }}</span>
                     {% endif %}
-                    <span class="grant-badge grant-badge-status">{{ match.grant.get_status_display }}</span>
+                    <span class="grant-badge grant-badge-status status-{{ match.grant.status }}">{{ match.grant.get_status_display }}</span>
                 </div>
                 <div class="grant-card-actions">
                     <a href="{% url 'grants:grant_detail' match.grant.id %}" class="btn-view-details">View Details</a>
