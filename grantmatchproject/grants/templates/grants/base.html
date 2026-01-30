@@ -58,6 +58,19 @@
                     </svg>
                     <span>Settings</span>
                 </a>
+                {% if user.is_authenticated %}
+                <form action="{% url 'logout' %}" method="post" class="nav-logout-form">
+                    {% csrf_token %}
+                    <button type="submit" class="nav-item nav-item-logout">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M8 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                            <polyline points="12 13 18 10 12 7"/>
+                            <line x1="18" y1="10" x2="8" y2="10"/>
+                        </svg>
+                        <span>Log out</span>
+                    </button>
+                </form>
+                {% endif %}
             </nav>
         </aside>
 
@@ -161,6 +174,10 @@
                         </div>
                     </div>
                     {% if user.is_authenticated %}
+                        <form action="{% url 'logout' %}" method="post" class="header-logout-form">
+                            {% csrf_token %}
+                            <button type="submit" class="header-logout-link" title="Log out">Log out</button>
+                        </form>
                         <div class="user-avatar">
                             {% if user.profile.avatar_initials %}
                                 {{ user.profile.avatar_initials }}
@@ -230,6 +247,7 @@
         if (notificationBellBtn) {
             notificationBellBtn.addEventListener('click', function(e) {
                 e.preventDefault();
+                e.stopPropagation();
                 notificationsPanel.classList.toggle('active');
                 if (notificationsPanel.classList.contains('active')) {
                     var rect = notificationBellBtn.getBoundingClientRect();
@@ -237,11 +255,11 @@
                 }
             });
 
-            // Close panel when clicking outside
+            // Close panel when clicking outside (use capture so we run after panel is open; ignore same click as open)
             document.addEventListener('click', function(e) {
-                if (!notificationBellBtn.contains(e.target) && !notificationsPanel.contains(e.target)) {
-                    notificationsPanel.classList.remove('active');
-                }
+                if (!notificationsPanel.classList.contains('active')) return;
+                if (notificationBellBtn.contains(e.target) || notificationsPanel.contains(e.target)) return;
+                notificationsPanel.classList.remove('active');
             });
         }
 

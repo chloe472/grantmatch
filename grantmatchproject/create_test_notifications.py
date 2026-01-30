@@ -47,7 +47,7 @@ for notif_data in notifications:
         link=notif_data['link'],
         is_read=False
     )
-    print(f"✓ Created: {notification.title}")
+    print(f"Created: {notification.title}")
 
-print(f"\n✅ Created {len(notifications)} test notifications!")
+print(f"\nCreated {len(notifications)} test notifications!")
 print(f"Refresh your browser to see them.")
