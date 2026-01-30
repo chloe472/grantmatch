@@ -58,19 +58,6 @@
                     </svg>
                     <span>Settings</span>
                 </a>
-                {% if user.is_authenticated %}
-                <form action="{% url 'logout' %}" method="post" class="nav-logout-form">
-                    {% csrf_token %}
-                    <button type="submit" class="nav-item nav-item-logout">
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M8 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                            <polyline points="12 13 18 10 12 7"/>
-                            <line x1="18" y1="10" x2="8" y2="10"/>
-                        </svg>
-                        <span>Log out</span>
-                    </button>
-                </form>
-                {% endif %}
             </nav>
         </aside>
 
@@ -99,27 +86,26 @@
                             {% endif %}
                         </a>
                         
-                        <!-- Notifications Panel (dropdown overlay below bell) -->
+                        <!-- Notifications Panel -->
                         <div id="notifications-panel" class="notifications-panel">
                             <div class="notifications-header">
-                                <div class="notifications-header-row1">
-                                    <h3 class="notifications-title">Notifications</h3>
-                                    <button class="notifications-close-btn" id="notifications-close-btn" type="button" aria-label="Close">
+                                <div class="notifications-header-left">
+                                    <h3>Notifications</h3>
+                                    <span class="unread-count" id="unread-count">{{ unread_notifications }} unread</span>
+                                </div>
+                                <div class="notifications-header-right">
+                                    <a href="#" class="mark-all-read" id="mark-all-read">Mark all as read</a>
+                                    <button class="notifications-close-btn" id="notifications-close-btn">
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                                             <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                                         </svg>
                                     </button>
                                 </div>
-                                <div class="notifications-header-row2">
-                                    <span class="unread-count" id="unread-count">{{ unread_notifications }} unread</span>
-                                    <a href="#" class="mark-all-read" id="mark-all-read">Mark all as read</a>
-                                </div>
                             </div>
                             <div class="notifications-list">
                                 {% if user_notifications %}
-                                    <div class="notification-section-header">EARLIER</div>
                                     {% for notification in user_notifications %}
-                                    <div class="notification-item {% if not notification.is_read %}unread{% endif %}" data-id="{{ notification.id }}" {% if notification.link %}data-link="{{ notification.link }}"{% endif %} style="{% if 'match' in notification.title|lower or 'deadline' in notification.title|lower %}--icon-bg: #fed7aa; --icon-color: #ea580c;{% elif 'approved' in notification.title|lower %}--icon-bg: #dcfce7; --icon-color: #16a34a;{% elif 'saved' in notification.title|lower or 'submitted' in notification.title|lower %}--icon-bg: #dbeafe; --icon-color: #2563eb;{% endif %}">
+                                    <div class="notification-item {% if not notification.is_read %}unread{% endif %}" data-id="{{ notification.id }}" style="{% if 'match' in notification.title|lower or 'deadline' in notification.title|lower %}--icon-bg: #fed7aa; --icon-color: #ea580c;{% elif 'approved' in notification.title|lower %}--icon-bg: #dcfce7; --icon-color: #16a34a;{% elif 'saved' in notification.title|lower or 'submitted' in notification.title|lower %}--icon-bg: #dbeafe; --icon-color: #2563eb;{% endif %}">
                                         <div class="notification-icon" style="background-color: var(--icon-bg, #fed7aa); color: var(--icon-color, #ea580c);">
                                             {% if "approved" in notification.title|lower %}
                                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -166,7 +152,7 @@
                                     </div>
                                     {% endfor %}
                                 {% else %}
-                                    <div class="empty-notifications">
+                                    <div class="empty-notifications" style="padding: 40px 20px; text-align: center; color: #94a3b8;">
                                         <p>No notifications yet</p>
                                     </div>
                                 {% endif %}
@@ -174,10 +160,6 @@
                         </div>
                     </div>
                     {% if user.is_authenticated %}
-                        <form action="{% url 'logout' %}" method="post" class="header-logout-form">
-                            {% csrf_token %}
-                            <button type="submit" class="header-logout-link" title="Log out">Log out</button>
-                        </form>
                         <div class="user-avatar">
                             {% if user.profile.avatar_initials %}
                                 {{ user.profile.avatar_initials }}
@@ -247,19 +229,14 @@
         if (notificationBellBtn) {
             notificationBellBtn.addEventListener('click', function(e) {
                 e.preventDefault();
-                e.stopPropagation();
                 notificationsPanel.classList.toggle('active');
-                if (notificationsPanel.classList.contains('active')) {
-                    var rect = notificationBellBtn.getBoundingClientRect();
-                    notificationsPanel.style.top = (rect.bottom + 8) + 'px';
-                }
             });
 
-            // Close panel when clicking outside (use capture so we run after panel is open; ignore same click as open)
+            // Close panel when clicking outside
             document.addEventListener('click', function(e) {
-                if (!notificationsPanel.classList.contains('active')) return;
-                if (notificationBellBtn.contains(e.target) || notificationsPanel.contains(e.target)) return;
-                notificationsPanel.classList.remove('active');
+                if (!notificationBellBtn.contains(e.target) && !notificationsPanel.contains(e.target)) {
+                    notificationsPanel.classList.remove('active');
+                }
             });
         }
 
@@ -268,16 +245,6 @@
             notificationsCloseBtn.addEventListener('click', function(e) {
                 e.preventDefault();
                 notificationsPanel.classList.remove('active');
-            });
-        }
-
-        // Notification item click: navigate to link if present
-        if (notificationsPanel) {
-            notificationsPanel.addEventListener('click', function(e) {
-                var item = e.target.closest('.notification-item');
-                if (item && item.dataset.link) {
-                    window.location.href = item.dataset.link;
-                }
             });
         }
 
