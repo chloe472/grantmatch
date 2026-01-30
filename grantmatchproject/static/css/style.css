@@ -655,17 +655,30 @@ body {
 .grant-icon {
     width: 48px;
     height: 48px;
+    min-width: 48px;
     border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 600;
     font-size: 20px;
+    position: relative;
+    overflow: hidden;
     color: white;
 }
 
 .grant-icon-default {
     background: var(--primary-blue);
+}
+
+.grant-icon-logo {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 6px;
 }
 
 .grant-agency {
