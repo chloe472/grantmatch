@@ -1,35 +1,107 @@
 {% extends 'grants/base.html' %}
 {% load static %}
+{% load humanize %}
 
 {% block title %}My Projects - Granted{% endblock %}
 
 {% block content %}
-<div class="projects-page">
-    <div class="page-header">
+<div class="projects-content">
+    <div class="projects-header">
         <h1>My Projects</h1>
-        <a href="{% url 'grants:project_create' %}" class="btn btn-primary">Create New Project</a>
+        <p class="projects-subtitle">Manage your projects and find matching grants</p>
     </div>
 
-    <div class="projects-grid">
-        {% for project in projects %}
-        <div class="project-card">
-            <h3>{{ project.title }}</h3>
-            <p class="project-focus">{{ project.focus_area }}</p>
-            <p class="project-description">{{ project.description|truncatewords:30 }}</p>
-            <div class="project-stats">
-                <span>{{ project.match_count }} match{{ project.match_count|pluralize }}</span>
-            </div>
-            <div class="project-actions">
-                <a href="{% url 'grants:project_matches' project.id %}" class="btn btn-secondary btn-sm">View Matches</a>
-                <a href="{% url 'grants:project_edit' project.id %}" class="btn btn-primary btn-sm">Edit</a>
-            </div>
+    <!-- Create New Project Card -->
+    <a href="{% url 'grants:project_create' %}" class="create-project-card" style="display: flex; align-items: center; gap: 24px; padding: 32px; background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); border-radius: 12px; margin-bottom: 40px; text-decoration: none; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.2);">
+        <div class="create-project-icons" style="display: flex; gap: 16px; flex-shrink: 0;">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                <path d="M12 5V19M5 12H19" stroke="white" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="white">
+                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+            </svg>
         </div>
-        {% empty %}
-        <div class="empty-state">
-            <p>You haven't created any projects yet.</p>
-            <a href="{% url 'grants:project_create' %}" class="btn btn-primary">Create Your First Project</a>
+        <div class="create-project-text" style="flex: 1;">
+            <h2 style="font-size: 20px; font-weight: 600; color: white; margin: 0 0 4px 0;">Create New Project</h2>
+            <p style="font-size: 14px; color: rgba(255, 255, 255, 0.9); margin: 0;">Describe your project and let AI find matching grants</p>
         </div>
-        {% endfor %}
+    </a>
+
+    <!-- Recent Projects Section -->
+    <div class="recent-projects-section">
+        <h2>Recent Projects</h2>
+        
+        {% if projects %}
+            <div class="projects-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; margin-top: 20px;">
+                {% for project in projects %}
+                <div class="project-card" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: all 0.3s ease; cursor: pointer;" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.15)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'; this.style.transform='translateY(0)'">
+                    <div class="project-card-header" style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                        <div class="project-icon" style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; font-weight: 600; flex-shrink: 0;">
+                            {{ project.title|slice:":1"|upper }}
+                        </div>
+                        <h3 style="font-size: 18px; font-weight: 600; color: #1e293b; margin: 0; flex: 1;">{{ project.title }}</h3>
+                        <button style="background: none; border: none; color: #64748b; cursor: pointer; padding: 4px;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    {% if project.focus_area or project.match_count %}
+                    <div class="project-badges" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
+                        {% if project.focus_area %}
+                        <span style="display: inline-flex; align-items: center; padding: 4px 12px; background: #eff6ff; color: #2563eb; border-radius: 16px; font-size: 12px; font-weight: 500;">
+                            {{ project.focus_area|truncatewords:3 }}
+                        </span>
+                        {% endif %}
+                        {% if project.match_count %}
+                        <span style="display: inline-flex; align-items: center; padding: 4px 12px; background: #dcfce7; color: #16a34a; border-radius: 16px; font-size: 12px; font-weight: 600;">
+                            {{ project.match_count }} match{{ project.match_count|pluralize }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                    {% if project.description %}
+                    <p style="font-size: 13px; color: #64748b; line-height: 1.5; margin: 0 0 16px 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                        {{ project.description|truncatewords:20 }}
+                    </p>
+                    {% endif %}
+                    
+                    <div class="project-footer" style="display: flex; gap: 16px; margin-bottom: 16px; font-size: 12px; color: #64748b;">
+                        {% if project.budget_required_min and project.budget_required_max %}
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                            </svg>
+                            <span>${{ project.budget_required_min|floatformat:0|intcomma }} - ${{ project.budget_required_max|floatformat:0|intcomma }}</span>
+                        </div>
+                        {% endif %}
+                        {% if project.duration_years %}
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            <span>{{ project.duration_years }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <a href="{% url 'grants:project_matches' project.id %}" style="display: block; width: 100%; padding: 10px 16px; background: #2563eb; color: white; text-align: center; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500; transition: background 0.2s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
+                        View Matches
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state" style="text-align: center; padding: 60px 40px; background: white; border: 1px solid #e5e7eb; border-radius: 12px; margin-top: 20px;">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5" style="margin: 0 auto 16px;">
+                    <path d="M19 13H5V7H19M19 13L20.7 19.3C20.9 20.2 20.3 21 19.3 21H4.7C3.7 21 3.1 20.2 3.3 19.3L5 13M9 10V6C9 4.9 9.9 4 11 4H13C14.1 4 15 4.9 15 6V10"/>
+                </svg>
+                <h3 style="font-size: 18px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0;">No projects yet</h3>
+                <p style="font-size: 14px; color: #64748b; margin: 0;">Create your first project to get started with grant matching</p>
+            </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

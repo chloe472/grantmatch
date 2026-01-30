@@ -260,7 +260,7 @@ def calculate_matches_for_project(project):
     grants = Grant.objects.filter(status='open')
 
     for grant in grants:
-        score, reasons = compute_match_score(project, grant)
+        score, reasons, negative_reasons = compute_match_score(project, grant)
 
         if score >= 70:
             GrantMatch.objects.update_or_create(
@@ -286,7 +286,7 @@ def project_matches(request, project_id):
     
     for grant in grants:
         try:
-            score, reasons = compute_match_score(project, grant)
+            score, reasons, negative_reasons = compute_match_score(project, grant)
             
             # Include all grants with calculated scores (display all matches)
             matching_grants.append({
@@ -316,7 +316,6 @@ def project_matches(request, project_id):
         'project': project,
         'matching_grants': matching_grants,
         'saved_grant_ids': saved_grant_ids,
-        'use_gemini': use_gemini,
     }
     
     return render(request, 'grants/project_matches.html', context)
@@ -503,18 +502,27 @@ def grant_detail(request, grant_id):
     
     is_saved = False
     match_score = 0
-    match_reasons = []
+    positive_reasons = []
+    negative_reasons = []
+    
     if user_matches.exists():
         match = user_matches.first()
         is_saved = match.is_saved
         match_score = match.match_score
-        match_reasons = match.match_reasons or []
     
-    # Generate AI-powered match analysis using Gemini - ONLY if there's an actual match
-    positive_reasons = match_reasons[:4] if match_reasons else []
-    negative_reasons = []
-    
-    # Use existing match reasons (no AI analysis needed with rule-based matching)
+    # When user has a project, always compute match to get both positive and negative reasons for display
+    if user_project:
+        score, pos_reasons, neg_reasons = compute_match_score(user_project, grant)
+        positive_reasons = (pos_reasons[:5] if pos_reasons else [])  # Up to 5 most relevant
+        negative_reasons = (neg_reasons[:5] if neg_reasons else [])   # Up to 5 most relevant
+        # Use computed score for display if we have no stored match (e.g. viewing from browse)
+        if not user_matches.exists():
+            match_score = score
+    else:
+        # No project: use stored match reasons if any
+        if user_matches.exists():
+            match = user_matches.first()
+            positive_reasons = (match.match_reasons or [])[:5]
     
     # Check if user has an existing application for this grant
     existing_application = Application.objects.filter(
@@ -569,8 +577,8 @@ def grant_detail(request, grant_id):
         'user_matches': user_matches,
         'is_saved': is_saved,
         'match_score': match_score,
-        'match_reasons': positive_reasons,
-        'negative_reasons': negative_reasons,
+        'match_reasons': positive_reasons,   # Why This Grant Matches (max 5)
+        'negative_reasons': negative_reasons, # Why It May Not Match (max 5)
         'similar_grants': similar_grants,
         'existing_application': existing_application,
         'user_project': user_project,
