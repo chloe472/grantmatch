@@ -49,11 +49,24 @@ def dashboard(request):
         # Get recent matches (top 3)
         recent_matches = GrantMatch.objects.filter(project__user=user).select_related('grant', 'grant__agency')[:3]
         
-        # Get upcoming deadlines (grants closing in next 120 days)
+        # Allow changing upcoming-deadlines window from dashboard (GET param)
+        upcoming_days_param = request.GET.get('upcoming_days')
+        if upcoming_days_param is not None:
+            try:
+                ud = int(upcoming_days_param)
+                if ud in dict(UserProfile.UPCOMING_DEADLINES_DAYS_CHOICES):
+                    profile.upcoming_deadlines_days = ud
+                    profile.save()
+                    return redirect('grants:dashboard')
+            except (TypeError, ValueError):
+                pass
+
+        # Get upcoming deadlines (grants closing within user's chosen window)
+        days = getattr(profile, 'upcoming_deadlines_days', 60) or 60
         upcoming_deadlines = Grant.objects.filter(
             status='open',
             closing_date__gte=timezone.now().date(),
-            closing_date__lte=timezone.now().date() + timedelta(days=120)
+            closing_date__lte=timezone.now().date() + timedelta(days=days)
         ).order_by('closing_date')[:3]
         
         # Get new grants matching user's projects (if any)
@@ -76,6 +89,7 @@ def dashboard(request):
             'recent_matches': recent_matches,
             'upcoming_deadlines': upcoming_deadlines,
             'new_matching_grants': new_matching_grants[:2],
+            'upcoming_deadlines_choices': UserProfile.UPCOMING_DEADLINES_DAYS_CHOICES,
         }
         
         return render(request, 'grants/dashboard.html', context)
@@ -912,13 +926,21 @@ def settings_view(request):
         profile.ai_proposal_assistance = request.POST.get('ai_proposal_assistance') == 'on'
         profile.ai_deadline_alerts = request.POST.get('ai_deadline_alerts') == 'on'
         
+        # Dashboard: upcoming deadlines window
+        try:
+            ud_days = int(request.POST.get('upcoming_deadlines_days', profile.upcoming_deadlines_days or 60))
+            if ud_days in dict(UserProfile.UPCOMING_DEADLINES_DAYS_CHOICES):
+                profile.upcoming_deadlines_days = ud_days
+        except (TypeError, ValueError):
+            pass
+
         # Matching Preferences
         preferred_categories = request.POST.getlist('preferred_categories')
         profile.preferred_categories = preferred_categories
         profile.funding_min = request.POST.get('funding_min') or None
         profile.funding_max = request.POST.get('funding_max') or None
         profile.typical_duration = request.POST.get('typical_duration', '12_months')
-        
+
         profile.save()
         user.save()
         
@@ -930,6 +952,7 @@ def settings_view(request):
         'organization_type_choices': UserProfile.ORGANIZATION_TYPE_CHOICES,
         'threshold_choices': UserProfile.NOTIFICATION_THRESHOLD_CHOICES,
         'duration_choices': UserProfile.DURATION_CHOICES,
+        'upcoming_deadlines_choices': UserProfile.UPCOMING_DEADLINES_DAYS_CHOICES,
         'grant_categories': [
             'Community Care',
             'Innovation',

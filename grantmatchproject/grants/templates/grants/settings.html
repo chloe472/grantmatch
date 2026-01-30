@@ -678,6 +678,17 @@ input:checked + .toggle-slider:before {
                 </select>
             </div>
 
+            <div class="form-section">
+                <div class="form-section-title">Dashboard – Upcoming Deadlines</div>
+                <label>Show grants in "Upcoming Deadlines" if they close within</label>
+                <p style="color: #666; font-size: 0.9rem; margin-bottom: 0.75rem;">Grants with a closing date within this window appear in the Upcoming Deadlines section on your dashboard.</p>
+                <select name="upcoming_deadlines_days" class="threshold-select">
+                    {% for value, label in upcoming_deadlines_choices %}
+                    <option value="{{ value }}" {% if profile.upcoming_deadlines_days == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
             <!-- AI Preferences Tab -->
             {% elif tab == 'ai' %}
             <div class="settings-header">

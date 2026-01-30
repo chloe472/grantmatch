@@ -28,6 +28,40 @@
         width: 20px;
         height: 20px;
     }
+    .section-header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    .section-header-row .section-title {
+        margin-bottom: 0;
+    }
+    .upcoming-days-form {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .upcoming-days-form label {
+        font-size: 0.9rem;
+        color: var(--text-light);
+        white-space: nowrap;
+    }
+    .upcoming-days-form select {
+        padding: 0.4rem 0.75rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        background: white;
+        color: #333;
+        cursor: pointer;
+    }
+    .upcoming-days-form select:hover,
+    .upcoming-days-form select:focus {
+        border-color: var(--primary-blue);
+        outline: none;
+    }
 </style>
 {% endblock %}
 
@@ -159,7 +193,17 @@
 
     <!-- Upcoming Deadlines -->
     <div class="section">
-        <h2 class="section-title">Upcoming Deadlines</h2>
+        <div class="section-header-row">
+            <h2 class="section-title">Upcoming Deadlines</h2>
+            <form class="upcoming-days-form" method="get" action="{% url 'grants:dashboard' %}" id="upcoming-days-form">
+                <label for="upcoming_days">Show next</label>
+                <select name="upcoming_days" id="upcoming_days" onchange="this.form.submit()">
+                    {% for value, label in upcoming_deadlines_choices %}
+                    <option value="{{ value }}" {% if profile.upcoming_deadlines_days == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
         <div class="deadlines-list">
             {% for grant in upcoming_deadlines %}
             <div class="deadline-item">

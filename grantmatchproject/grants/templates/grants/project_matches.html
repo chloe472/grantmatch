@@ -272,30 +272,30 @@
     }
     
     .btn-save-star {
-        width: 36px;
-        height: 36px;
-        border: 1px solid var(--border-color);
-        border-radius: 6px;
-        background: var(--bg-white);
+        background: none;
+        border: none;
+        padding: 8px;
+        cursor: pointer;
+        color: var(--text-light);
         display: flex;
         align-items: center;
         justify-content: center;
-        cursor: pointer;
+        border-radius: 6px;
         transition: all 0.2s;
     }
     
     .btn-save-star:hover {
-        border-color: var(--primary-blue);
         background: var(--bg-gray-light);
+        color: var(--accent-yellow);
     }
     
     .btn-save-star.saved {
-        background: #fef3c7;
-        border-color: #f59e0b;
+        color: var(--accent-yellow);
     }
     
-    .btn-save-star.saved svg {
-        color: #f59e0b;
+    .btn-save-star svg {
+        width: 20px;
+        height: 20px;
     }
     
     .empty-state {
@@ -441,9 +441,9 @@
                 <div class="grant-card-actions">
                     <a href="{% url 'grants:grant_detail' match.grant.id %}" class="btn-view-details">View Details</a>
                     <button class="btn-save-star {% if match.grant.id in saved_grant_ids %}saved{% endif %}" 
-                            onclick="toggleSaveGrant({{ match.grant.id }}, this)">
+                            onclick="toggleSaveGrant({{ match.grant.id }}, this)" title="{% if match.grant.id in saved_grant_ids %}Unsave grant{% else %}Save grant{% endif %}">
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="{% if match.grant.id in saved_grant_ids %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2">
-                            <path d="M10 15L5 10L6.5 8.5L10 12L13.5 8.5L15 10L10 15Z"/>
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
                         </svg>
                     </button>
                 </div>
@@ -464,25 +464,33 @@
 {% block extra_js %}
 <script>
     function toggleSaveGrant(grantId, button) {
-        fetch(`/grants/grants/${grantId}/save/`, {
+        var csrfToken = getCookie('csrftoken');
+        fetch('/grants/' + grantId + '/save/', {
             method: 'POST',
             headers: {
-                'X-CSRFToken': '{{ csrf_token }}',
-                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/x-www-form-urlencoded',
             },
+            body: 'csrfmiddlewaretoken=' + encodeURIComponent(csrfToken),
             credentials: 'same-origin'
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.saved) {
+        .then(function(response) {
+            if (!response.ok) throw new Error('Save failed');
+            return response.json();
+        })
+        .then(function(data) {
+            var isSaved = data.is_saved === true;
+            if (isSaved) {
                 button.classList.add('saved');
                 button.querySelector('svg').setAttribute('fill', 'currentColor');
+                button.setAttribute('title', 'Unsave grant');
             } else {
                 button.classList.remove('saved');
                 button.querySelector('svg').setAttribute('fill', 'none');
+                button.setAttribute('title', 'Save grant');
             }
         })
-        .catch(error => {
+        .catch(function(error) {
             console.error('Error toggling save:', error);
         });
     }

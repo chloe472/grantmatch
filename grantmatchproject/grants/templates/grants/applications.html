@@ -509,12 +509,18 @@
         </div>
     </div>
 </div>
+<!-- CSRF and URL for drag-drop (server-rendered, safe for JS) -->
+<script type="application/json" id="applications-config">
+{"csrf_token": "{{ csrf_token|escapejs }}", "update_status_url": "{% url 'grants:update_application_status' 0 %}"}
+</script>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    let draggedElement = null;
-    let draggedApplicationId = null;
+    var applicationsConfig = JSON.parse(document.getElementById('applications-config').textContent);
+
+    var draggedElement = null;
+    var draggedApplicationId = null;
 
     function handleDragStart(e) {
         var card = e.currentTarget;
@@ -530,17 +536,15 @@
             e.preventDefault();
         }
         e.dataTransfer.dropEffect = 'move';
-        
-        const column = e.currentTarget.closest('.kanban-column');
+        var column = e.currentTarget.closest('.kanban-column');
         if (column) {
             column.classList.add('drag-over');
         }
-        
         return false;
     }
 
     function handleDragLeave(e) {
-        const column = e.currentTarget.closest('.kanban-column');
+        var column = e.currentTarget.closest('.kanban-column');
         if (column) {
             column.classList.remove('drag-over');
         }
@@ -550,45 +554,57 @@
         if (e.stopPropagation) {
             e.stopPropagation();
         }
-
         e.preventDefault();
 
-        const column = e.currentTarget.closest('.kanban-column');
+        var column = e.currentTarget.closest('.kanban-column');
         if (column) {
             column.classList.remove('drag-over');
         }
 
-        if (draggedElement && draggedApplicationId) {
-            var newStatus = column.getAttribute('data-status');
-            var content = column.querySelector('.kanban-column-content');
-            
-            fetch('/applications/' + draggedApplicationId + '/update-status/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': getCookie('csrftoken'),
-                },
-                body: 'status=' + encodeURIComponent(newStatus)
-            })
-            .then(function(response) { return response.json(); })
-            .then(function(data) {
-                if (data.success) {
-                    draggedElement.classList.remove('dragging');
-                    content.appendChild(draggedElement);
-                    var emptyMsg = content.querySelector('.empty-column');
-                    if (emptyMsg) emptyMsg.style.display = 'none';
-                    updateColumnCounts();
-                } else {
-                    alert('Error updating application status');
-                    location.reload();
-                }
-            })
-            .catch(function(error) {
-                console.error('Error:', error);
+        if (!draggedElement || !draggedApplicationId) {
+            return false;
+        }
+
+        var newStatus = column.getAttribute('data-status');
+        var content = column.querySelector('.kanban-column-content');
+        var csrfToken = applicationsConfig.csrf_token;
+        var formBody = 'csrfmiddlewaretoken=' + encodeURIComponent(csrfToken) + '&status=' + encodeURIComponent(newStatus);
+        var url = applicationsConfig.update_status_url.replace('0', draggedApplicationId);
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrfToken,
+            },
+            body: formBody,
+            credentials: 'same-origin'
+        })
+        .then(function(response) {
+            if (!response.ok) {
+                return response.text().then(function(text) {
+                    throw new Error('HTTP ' + response.status + ': ' + text.slice(0, 200));
+                });
+            }
+            return response.json();
+        })
+        .then(function(data) {
+            if (data && data.success) {
+                draggedElement.classList.remove('dragging');
+                content.appendChild(draggedElement);
+                var emptyMsg = content.querySelector('.empty-column');
+                if (emptyMsg) emptyMsg.style.display = 'none';
+                updateColumnCounts();
+            } else {
                 alert('Error updating application status');
                 location.reload();
-            });
-        }
+            }
+        })
+        .catch(function(err) {
+            console.error('Update status error:', err);
+            alert('Error updating application status. Please refresh the page and try again.');
+            location.reload();
+        });
 
         return false;
     }

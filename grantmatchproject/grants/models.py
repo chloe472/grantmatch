@@ -103,6 +103,15 @@ class UserProfile(models.Model):
         ('24_months', '24 months'),
         ('36_months', '36 months'),
     ]
+
+    UPCOMING_DEADLINES_DAYS_CHOICES = [
+        (7, '7 days'),
+        (14, '14 days'),
+        (30, '30 days'),
+        (60, '60 days'),
+        (90, '90 days'),
+        (120, '120 days'),
+    ]
     
     # Personal Info
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
@@ -131,6 +140,13 @@ class UserProfile(models.Model):
     ai_proposal_assistance = models.BooleanField(default=True, help_text="AI proposal writing assistance")
     ai_deadline_alerts = models.BooleanField(default=True, help_text="Smart deadline alerts")
     
+    # Dashboard: when a grant counts as "upcoming" (closing within N days)
+    upcoming_deadlines_days = models.PositiveIntegerField(
+        default=60,
+        choices=UPCOMING_DEADLINES_DAYS_CHOICES,
+        help_text="Show grants in Dashboard 'Upcoming Deadlines' if they close within this many days"
+    )
+
     # Matching Preferences
     preferred_categories = models.JSONField(default=list, help_text="Preferred grant categories")
     funding_min = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
