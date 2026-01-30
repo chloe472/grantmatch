@@ -132,15 +132,28 @@
     .application-icon {
         width: 40px;
         height: 40px;
+        min-width: 40px;
         border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: 600;
-        font-size: 14px;
-        color: white;
-        background: var(--primary-blue);
+        font-size: 12px;
+        color: #64748b;
+        background: #fff;
+        border: 1px solid #e5e7eb;
         flex-shrink: 0;
+        position: relative;
+        overflow: hidden;
+    }
+    .application-icon img {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        border-radius: 6px;
     }
 
     .application-info {
@@ -280,7 +293,7 @@
             </div>
             <div class="kanban-column-content" ondrop="handleDrop(event)" ondragover="handleDragOver(event)">
                 {% for application in status_groups.in_progress %}
-                <a href="{% url 'grants:grant_detail' application.grant.id %}" class="application-card" draggable="true" ondragstart="handleDragStart(event)" data-application-id="{{ application.id %}" style="text-decoration: none; color: inherit; display: block;">
+                <a href="{% url 'grants:grant_detail' application.grant.id %}" class="application-card" draggable="true" ondragstart="handleDragStart(event)" data-application-id="{{ application.id }}" style="text-decoration: none; color: inherit; display: block;">
                     <div class="application-card-header">
                         {% with agency_lower=application.grant.agency.acronym|lower %}
                         <div class="application-icon" style="position: relative; overflow: hidden;">
@@ -504,11 +517,12 @@
     let draggedApplicationId = null;
 
     function handleDragStart(e) {
-        draggedElement = e.target;
-        draggedApplicationId = e.target.getAttribute('data-application-id');
-        e.target.classList.add('dragging');
+        var card = e.currentTarget;
+        draggedElement = card;
+        draggedApplicationId = card.getAttribute('data-application-id');
+        card.classList.add('dragging');
         e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/html', e.target.outerHTML);
+        e.dataTransfer.setData('text/plain', draggedApplicationId);
     }
 
     function handleDragOver(e) {
@@ -545,34 +559,31 @@
         }
 
         if (draggedElement && draggedApplicationId) {
-            const newStatus = column.getAttribute('data-status');
+            var newStatus = column.getAttribute('data-status');
+            var content = column.querySelector('.kanban-column-content');
             
-            // Update status via AJAX
-            fetch(`/grants/applications/${draggedApplicationId}/update-status/`, {
+            fetch('/applications/' + draggedApplicationId + '/update-status/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-CSRFToken': getCookie('csrftoken'),
                 },
-                body: `status=${newStatus}`
+                body: 'status=' + encodeURIComponent(newStatus)
             })
-            .then(response => response.json())
-            .then(data => {
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
                 if (data.success) {
-                    // Remove from old column
-                    draggedElement.remove();
-                    
-                    // Update counts
+                    draggedElement.classList.remove('dragging');
+                    content.appendChild(draggedElement);
+                    var emptyMsg = content.querySelector('.empty-column');
+                    if (emptyMsg) emptyMsg.style.display = 'none';
                     updateColumnCounts();
-                    
-                    // Reload page to show updated status
-                    location.reload();
                 } else {
                     alert('Error updating application status');
                     location.reload();
                 }
             })
-            .catch(error => {
+            .catch(function(error) {
                 console.error('Error:', error);
                 alert('Error updating application status');
                 location.reload();
