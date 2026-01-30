@@ -509,16 +509,42 @@
     }
     
     .similar-grant-icon {
-        width: 40px;
-        height: 40px;
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
         border-radius: 8px;
-        background: var(--primary-blue);
-        color: white;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        color: #64748b;
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: 600;
         flex-shrink: 0;
+        position: relative;
+        overflow: hidden;
+        padding: 8px;
+        box-sizing: border-box;
+    }
+    .similar-grant-icon-fallback {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .similar-grant-logo-img {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        border-radius: 6px;
+        z-index: 1;
     }
     
     .similar-grant-info {
@@ -1259,10 +1285,25 @@
                 <div class="similar-grant-card">
                     <div class="similar-grant-header">
                         <div class="similar-grant-icon">
-                            {% if similar.agency.logo_url %}
-                                <img src="{{ similar.agency.logo_url }}" alt="{{ similar.agency.acronym }}" style="width: 100%; height: 100%; object-fit: contain; border-radius: 6px;">
+                            {% if similar.agency %}
+                                {% with agency_lower=similar.agency.acronym|lower %}
+                                <span class="similar-grant-icon-fallback">{{ similar.agency.acronym|slice:":1" }}</span>
+                                {% if similar.agency.logo_url %}
+                                    <img src="{{ similar.agency.logo_url }}" alt="{{ similar.agency.acronym }} logo"
+                                         class="similar-grant-logo-img"
+                                         onload="this.previousElementSibling.style.display='none'; this.style.display='block';"
+                                         onerror="this.style.display='none'; this.previousElementSibling.style.display='flex';"
+                                         style="display: none;">
+                                {% else %}
+                                    <img src="{% static 'agency-logos/' %}{{ agency_lower }}.png" alt="{{ similar.agency.acronym }} logo"
+                                         class="similar-grant-logo-img"
+                                         onload="this.previousElementSibling.style.display='none'; this.style.display='block';"
+                                         onerror="tryNextFormat(this, '{{ agency_lower }}')"
+                                         style="display: none;">
+                                {% endif %}
+                                {% endwith %}
                             {% else %}
-                                {{ similar.agency.acronym|slice:":1" }}
+                                <span class="similar-grant-icon-fallback">N</span>
                             {% endif %}
                         </div>
                         <div class="similar-grant-info">
